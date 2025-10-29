@@ -1,30 +1,29 @@
 <script setup lang="ts">
-import HelloWorld from './components/HelloWorld.vue'
+import { onMounted, ref, provide } from 'vue'
+import AppLayout from '@/layouts/AppLayout.vue'
+import { ToastContainer } from '@/components/ui/toast'
+
+const toastContainer = ref()
+
+onMounted(() => {
+  // Initialize router
+})
+
+// Make toast available globally
+const toast = {
+  success: (title: string, message?: string, duration?: number) => toastContainer.value?.success(title, message, duration),
+  error: (title: string, message?: string, duration?: number) => toastContainer.value?.error(title, message, duration),
+  warning: (title: string, message?: string, duration?: number) => toastContainer.value?.warning(title, message, duration),
+  info: (title: string, message?: string, duration?: number) => toastContainer.value?.info(title, message, duration)
+}
+
+// Provide toast to all child components
+provide('toast', toast)
 </script>
 
 <template>
-  <div>
-    <a href="https://vite.dev" target="_blank">
-      <img src="/vite.svg" class="logo" alt="Vite logo" />
-    </a>
-    <a href="https://vuejs.org/" target="_blank">
-      <img src="./assets/vue.svg" class="logo vue" alt="Vue logo" />
-    </a>
-  </div>
-  <HelloWorld msg="Vite + Vue" />
+  <AppLayout>
+    <RouterView />
+    <ToastContainer ref="toastContainer" />
+  </AppLayout>
 </template>
-
-<style scoped>
-.logo {
-  height: 6em;
-  padding: 1.5em;
-  will-change: filter;
-  transition: filter 300ms;
-}
-.logo:hover {
-  filter: drop-shadow(0 0 2em #646cffaa);
-}
-.logo.vue:hover {
-  filter: drop-shadow(0 0 2em #42b883aa);
-}
-</style>

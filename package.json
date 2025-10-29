@@ -1,0 +1,19 @@
+{
+  "name": "bronze",
+  "version": "1.0.0",
+  "description": "Bronze - File processing application",
+  "scripts": {
+    "dev": "bun run dev.ts",
+    "build": "concurrently \"cd backend && go build -o bronze-backend main.go\" \"cd frontend && bun run build\"",
+    "start": "concurrently \"cd backend && ./bronze-backend\" \"cd frontend && bun run preview\"",
+    "test": "concurrently \"cd backend && go test ./...\" \"cd frontend && vue-tsc -b\"",
+    "lint": "concurrently \"cd backend && go fmt ./... && go vet ./...\" \"cd frontend && bun run build --dry-run\"",
+    "clean": "rm -f backend/bronze-backend && rm -rf frontend/dist"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  },
+  "workspaces": [
+    "frontend"
+  ]
+}
