@@ -1,0 +1,1342 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Bronze Backend API",
+    "description": "A comprehensive Go backend with MinIO integration, featuring file processing, parallel job management, and archive decompression capabilities",
+    "version": "1.0.0",
+    "contact": {
+      "name": "Bronze Backend Team",
+      "email": "support@bronze-backend.com"
+    },
+    "license": {
+      "name": "MIT",
+      "url": "https://opensource.org/licenses/MIT"
+    }
+  },
+  "servers": [
+    {
+      "url": "http://localhost:8080",
+      "description": "Development server"
+    }
+  ],
+  "paths": {
+    "/": {
+      "get": {
+        "summary": "Health check",
+        "description": "Check if the API is running and healthy",
+        "tags": ["Health"],
+        "responses": {
+          "200": {
+            "description": "API is healthy",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/health": {
+      "get": {
+        "summary": "Health check",
+        "description": "Check if the API is running and healthy",
+        "tags": ["Health"],
+        "responses": {
+          "200": {
+            "description": "API is healthy",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api": {
+      "get": {
+        "summary": "API information",
+        "description": "Get detailed information about the API endpoints and features",
+        "tags": ["Info"],
+        "responses": {
+          "200": {
+            "description": "API information retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiInfo"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/files": {
+      "post": {
+        "summary": "Upload file",
+        "description": "Upload a file to MinIO storage",
+        "tags": ["Files"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "file": {
+                    "type": "string",
+                    "format": "binary",
+                    "description": "File to upload"
+                  },
+                  "object_name": {
+                    "type": "string",
+                    "description": "Custom object name (optional)"
+                  }
+                },
+                "required": ["file"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "File uploaded successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UploadResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "summary": "List files",
+        "description": "List all files in MinIO bucket with optional prefix filtering",
+        "tags": ["Files"],
+        "parameters": [
+          {
+            "name": "prefix",
+            "in": "query",
+            "description": "Prefix to filter files",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Files listed successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FileListResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/files/{filename}": {
+      "get": {
+        "summary": "Download file",
+        "description": "Download a specific file from MinIO storage",
+        "tags": ["Files"],
+        "parameters": [
+          {
+            "name": "filename",
+            "in": "path",
+            "required": true,
+            "description": "Name of the file to download",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "File downloaded successfully",
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "File not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "summary": "Delete file",
+        "description": "Delete a specific file from MinIO storage",
+        "tags": ["Files"],
+        "parameters": [
+          {
+            "name": "filename",
+            "in": "path",
+            "required": true,
+            "description": "Name of the file to delete",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "File deleted successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeleteResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "File not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/files/{filename}/presigned": {
+      "get": {
+        "summary": "Generate presigned URL",
+        "description": "Generate a presigned URL for temporary file access",
+        "tags": ["Files"],
+        "parameters": [
+          {
+            "name": "filename",
+            "in": "path",
+            "required": true,
+            "description": "Name of the file",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "expiry",
+            "in": "query",
+            "required": false,
+            "description": "URL expiry duration (default: 24h)",
+            "schema": {
+              "type": "string",
+              "default": "24h"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Presigned URL generated successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PresignedURLResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "File not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/jobs": {
+      "post": {
+        "summary": "Create job",
+        "description": "Create a new processing job",
+        "tags": ["Jobs"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateJobRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Job created successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "summary": "List jobs",
+        "description": "List all jobs with optional status filtering",
+        "tags": ["Jobs"],
+        "parameters": [
+          {
+            "name": "status",
+            "in": "query",
+            "description": "Filter jobs by status (pending, processing, completed, failed, cancelled)",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": ["pending", "processing", "completed", "failed", "cancelled"]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Jobs retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobsListResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/jobs/stats": {
+      "get": {
+        "summary": "Get statistics",
+        "description": "Get job queue and worker pool statistics",
+        "tags": ["Jobs"],
+        "responses": {
+          "200": {
+            "description": "Statistics retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobStatsResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/jobs/workers": {
+      "put": {
+        "summary": "Update worker count",
+        "description": "Update the number of workers in the pool",
+        "tags": ["Jobs"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateWorkersRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Worker count updated successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/jobs/workers/active": {
+      "get": {
+        "summary": "Get active jobs",
+        "description": "Get currently active/processing jobs",
+        "tags": ["Jobs"],
+        "responses": {
+          "200": {
+            "description": "Active jobs retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobsListResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/jobs/{id}": {
+      "get": {
+        "summary": "Get job",
+        "description": "Get specific job details",
+        "tags": ["Jobs"],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Job ID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Job retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Job not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "summary": "Cancel job",
+        "description": "Cancel a specific job",
+        "tags": ["Jobs"],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Job ID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Job cancelled successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Job not found or cannot be cancelled",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/jobs/{id}/priority": {
+      "put": {
+        "summary": "Update job priority",
+        "description": "Update the priority of a specific job",
+        "tags": ["Jobs"],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Job ID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdatePriorityRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Job priority updated successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request or invalid priority",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Job not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/watcher/events/unprocessed": {
+      "get": {
+        "summary": "Get unprocessed events",
+        "description": "Get unprocessed file change events from the watcher",
+        "tags": ["Watcher"],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Maximum number of events to return (default: 50)",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 1000,
+              "default": 50
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Unprocessed events retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FileEventsResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/watcher/events/history": {
+      "get": {
+        "summary": "Get event history",
+        "description": "Get file change event history from the watcher",
+        "tags": ["Watcher"],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Maximum number of events to return (default: 100)",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 1000,
+              "default": 100
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Event history retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FileEventsResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/watcher/events/mark-processed": {
+      "post": {
+        "summary": "Mark event as processed",
+        "description": "Mark a file event as processed",
+        "tags": ["Watcher"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MarkEventProcessedRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Event marked as processed successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "HealthResponse": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "example": "healthy"
+          },
+          "message": {
+            "type": "string",
+            "example": "Bronze Backend API is running"
+          }
+        }
+      },
+      "ApiInfo": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "example": "Bronze Backend API"
+          },
+          "version": {
+            "type": "string",
+            "example": "1.0.0"
+          },
+          "description": {
+            "type": "string",
+            "example": "A Go backend with MinIO integration, file processing, and job management"
+          },
+          "endpoints": {
+            "type": "object"
+          },
+          "features": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "example": false
+          },
+          "message": {
+            "type": "string",
+            "example": "Error description"
+          },
+          "error": {
+            "type": "string",
+            "example": "Detailed error message"
+          }
+        }
+      },
+      "SuccessResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "example": true
+          },
+          "message": {
+            "type": "string",
+            "example": "Operation completed successfully"
+          }
+        }
+      },
+      "UploadResponse": {
+        "allOf": [
+          { "$ref": "#/components/schemas/SuccessResponse" },
+          {
+            "type": "object",
+            "properties": {
+              "object_name": {
+                "type": "string",
+                "example": "example.zip"
+              },
+              "size": {
+                "type": "integer",
+                "format": "int64",
+                "example": 1024
+              },
+              "etag": {
+                "type": "string",
+                "example": "d41d8cd98f00b204e9800998ecf8427e"
+              }
+            }
+          }
+        ]
+      },
+      "FileInfo": {
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string",
+            "example": "example.zip"
+          },
+          "size": {
+            "type": "integer",
+            "format": "int64",
+            "example": 1024
+          },
+          "last_modified": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2023-01-01T00:00:00Z"
+          },
+          "etag": {
+            "type": "string",
+            "example": "d41d8cd98f00b204e9800998ecf8427e"
+          },
+          "content_type": {
+            "type": "string",
+            "example": "application/zip"
+          }
+        }
+      },
+      "FileListResponse": {
+        "allOf": [
+          { "$ref": "#/components/schemas/SuccessResponse" },
+          {
+            "type": "object",
+            "properties": {
+              "files": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/FileInfo"
+                }
+              },
+              "count": {
+                "type": "integer",
+                "example": 10
+              }
+            }
+          }
+        ]
+      },
+      "DeleteResponse": {
+        "allOf": [
+          { "$ref": "#/components/schemas/SuccessResponse" },
+          {
+            "type": "object",
+            "properties": {
+              "deleted": {
+                "type": "string",
+                "example": "example.zip"
+              }
+            }
+          }
+        ]
+      },
+      "PresignedURLResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "example": true
+          },
+          "message": {
+            "type": "string",
+            "example": "Presigned URL generated successfully"
+          },
+          "url": {
+            "type": "string",
+            "example": "https://minio.example.com/files/example.zip?X-Amz-Algorithm=..."
+          },
+          "expiry": {
+            "type": "string",
+            "example": "24h"
+          },
+          "object_name": {
+            "type": "string",
+            "example": "example.zip"
+          }
+        }
+      },
+      "Job": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "example": "550e8400-e29b-41d4-a716-446655440000"
+          },
+          "type": {
+            "type": "string",
+            "example": "decompress"
+          },
+          "priority": {
+            "type": "string",
+            "enum": ["high", "medium", "low"],
+            "example": "high"
+          },
+          "status": {
+            "type": "string",
+            "enum": ["pending", "processing", "completed", "failed", "cancelled"],
+            "example": "pending"
+          },
+          "file_path": {
+            "type": "string",
+            "example": "/tmp/example.zip"
+          },
+          "bucket": {
+            "type": "string",
+            "example": "files"
+          },
+          "object_name": {
+            "type": "string",
+            "example": "example.zip"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2023-01-01T00:00:00Z"
+          },
+          "started_at": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "completed_at": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "error": {
+            "type": "string",
+            "nullable": true
+          },
+          "result": {
+            "type": "object",
+            "nullable": true
+          },
+          "progress": {
+            "type": "number",
+            "format": "float",
+            "minimum": 0,
+            "maximum": 100,
+            "example": 50
+          },
+          "metadata": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        }
+      },
+      "CreateJobRequest": {
+        "type": "object",
+        "required": ["type", "file_path", "bucket", "object_name"],
+        "properties": {
+          "type": {
+            "type": "string",
+            "description": "Job type",
+            "example": "decompress"
+          },
+          "file_path": {
+            "type": "string",
+            "description": "Path to the file to process",
+            "example": "/tmp/example.zip"
+          },
+          "bucket": {
+            "type": "string",
+            "description": "MinIO bucket name",
+            "example": "files"
+          },
+          "object_name": {
+            "type": "string",
+            "description": "Object name in MinIO",
+            "example": "example.zip"
+          },
+          "priority": {
+            "type": "string",
+            "enum": ["high", "medium", "low"],
+            "description": "Job priority",
+            "default": "medium",
+            "example": "high"
+          }
+        }
+      },
+      "JobResponse": {
+        "allOf": [
+          { "$ref": "#/components/schemas/SuccessResponse" },
+          {
+            "type": "object",
+            "properties": {
+              "job": {
+                "$ref": "#/components/schemas/Job"
+              }
+            }
+          }
+        ]
+      },
+      "JobsListResponse": {
+        "allOf": [
+          { "$ref": "#/components/schemas/SuccessResponse" },
+          {
+            "type": "object",
+            "properties": {
+              "jobs": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/Job"
+                }
+              },
+              "count": {
+                "type": "integer",
+                "example": 5
+              }
+            }
+          }
+        ]
+      },
+      "QueueStats": {
+        "type": "object",
+        "properties": {
+          "total": {
+            "type": "integer",
+            "example": 10
+          },
+          "pending": {
+            "type": "integer",
+            "example": 3
+          },
+          "processing": {
+            "type": "integer",
+            "example": 2
+          },
+          "completed": {
+            "type": "integer",
+            "example": 4
+          },
+          "failed": {
+            "type": "integer",
+            "example": 1
+          },
+          "cancelled": {
+            "type": "integer",
+            "example": 0
+          }
+        }
+      },
+      "WorkerPoolStats": {
+        "type": "object",
+        "properties": {
+          "total_workers": {
+            "type": "integer",
+            "example": 3
+          },
+          "active_jobs": {
+            "type": "integer",
+            "example": 2
+          },
+          "is_running": {
+            "type": "boolean",
+            "example": true
+          }
+        }
+      },
+      "JobStatsResponse": {
+        "allOf": [
+          { "$ref": "#/components/schemas/SuccessResponse" },
+          {
+            "type": "object",
+            "properties": {
+              "queue": {
+                "$ref": "#/components/schemas/QueueStats"
+              },
+              "workers": {
+                "$ref": "#/components/schemas/WorkerPoolStats"
+              }
+            }
+          }
+        ]
+      },
+      "UpdatePriorityRequest": {
+        "type": "object",
+        "required": ["priority"],
+        "properties": {
+          "priority": {
+            "type": "string",
+            "enum": ["high", "medium", "low"],
+            "description": "New job priority",
+            "example": "high"
+          }
+        }
+      },
+      "UpdateWorkersRequest": {
+        "type": "object",
+        "required": ["count"],
+        "properties": {
+          "count": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100,
+            "description": "Number of workers",
+            "example": 5
+          }
+        }
+      },
+      "FileEvent": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "example": "example-file-1234567890"
+          },
+          "bucket": {
+            "type": "string",
+            "example": "files"
+          },
+          "key": {
+            "type": "string",
+            "example": "uploads/example.zip"
+          },
+          "size": {
+            "type": "integer",
+            "format": "int64",
+            "example": 1024
+          },
+          "etag": {
+            "type": "string",
+            "example": "d41d8cd98f00b204e9800998ecf8427e"
+          },
+          "event_type": {
+            "type": "string",
+            "enum": ["s3:ObjectCreated:*", "s3:ObjectRemoved:*", "s3:ObjectMetadata:*"],
+            "example": "s3:ObjectCreated:*"
+          },
+          "event_time": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2023-01-01T00:00:00Z"
+          },
+          "metadata": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
+          },
+          "processed": {
+            "type": "boolean",
+            "example": false
+          },
+          "processed_at": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          }
+        }
+      },
+      "FileEventsResponse": {
+        "allOf": [
+          { "$ref": "#/components/schemas/SuccessResponse" },
+          {
+            "type": "object",
+            "properties": {
+              "events": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/FileEvent"
+                }
+              },
+              "count": {
+                "type": "integer",
+                "example": 10
+              }
+            }
+          }
+        ]
+      },
+      "MarkEventProcessedRequest": {
+        "type": "object",
+        "required": ["event_id"],
+        "properties": {
+          "event_id": {
+            "type": "string",
+            "description": "ID of the event to mark as processed",
+            "example": "example-file-1234567890"
+          }
+        }
+      }
+    },
+    "securitySchemes": {
+      "BearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      }
+    }
+  },
+  "tags": [
+    {
+      "name": "Health",
+      "description": "Health check and status endpoints"
+    },
+    {
+      "name": "Info",
+      "description": "API information and documentation"
+    },
+    {
+      "name": "Files",
+      "description": "File management operations"
+    },
+    {
+      "name": "Jobs",
+      "description": "Job management and processing"
+    },
+    {
+      "name": "Watcher",
+      "description": "File watching and change tracking"
+    }
+  ]
+}
