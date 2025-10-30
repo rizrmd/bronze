@@ -1,8 +1,12 @@
 package routes
 
 import (
+	"bufio"
 	"encoding/json"
+	"fmt"
 	"net/http"
+	"os"
+	"strings"
 
 	"bronze-backend/handlers"
 	"github.com/gorilla/mux"
@@ -33,6 +37,22 @@ func (r *Router) setupRoutes(
 	jobHandler *handlers.JobHandler,
 	watcherHandler *handlers.WatcherHandler,
 ) {
+	// Add CORS middleware
+	r.router.Use(func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Access-Control-Allow-Origin", "*")
+			w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+			w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+
+			if r.Method == "OPTIONS" {
+				w.WriteHeader(http.StatusOK)
+				return
+			}
+
+			next.ServeHTTP(w, r)
+		})
+	})
+
 	// Health check
 	r.router.HandleFunc("/health", r.healthCheck).Methods("GET")
 	r.router.HandleFunc("/", r.healthCheck).Methods("GET")
@@ -62,6 +82,10 @@ func (r *Router) setupRoutes(
 	watcherRouter.HandleFunc("/events/unprocessed", watcherHandler.GetUnprocessedEvents).Methods("GET")
 	watcherRouter.HandleFunc("/events/history", watcherHandler.GetEventHistory).Methods("GET")
 	watcherRouter.HandleFunc("/events/mark-processed", watcherHandler.MarkEventProcessed).Methods("POST")
+
+	// Configuration routes
+	r.router.HandleFunc("/config", r.getConfig).Methods("GET")
+	r.router.HandleFunc("/config", r.updateConfig).Methods("PUT")
 
 	// API documentation routes
 	r.router.HandleFunc("/api", r.apiInfo).Methods("GET")
@@ -208,11 +232,120 @@ func (r *Router) apiInfo(w http.ResponseWriter, req *http.Request) {
 	json.NewEncoder(w).Encode(apiInfo)
 }
 
+func (r *Router) getConfig(w http.ResponseWriter, req *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+
+	// Read current .env file
+	envData := make(map[string]string)
+
+	// Default values
+	envData["SERVER_HOST"] = "localhost"
+	envData["SERVER_PORT"] = "8080"
+	envData["MINIO_ENDPOINT"] = "localhost:9000"
+	envData["MINIO_ACCESS_KEY"] = "minioadmin"
+	envData["MINIO_SECRET_KEY"] = "minioadmin"
+	envData["MINIO_USE_SSL"] = "false"
+	envData["MINIO_BUCKET"] = "files"
+	envData["MINIO_REGION"] = "us-east-1"
+	envData["MAX_WORKERS"] = "3"
+	envData["QUEUE_SIZE"] = "100"
+	envData["WATCH_INTERVAL"] = "5s"
+	envData["TEMP_DIR"] = "/tmp/bronze"
+	envData["DECOMPRESSION_ENABLED"] = "true"
+	envData["MAX_EXTRACT_SIZE"] = "1GB"
+	envData["MAX_FILES_PER_ARCHIVE"] = "1000"
+	envData["NESTED_ARCHIVE_DEPTH"] = "3"
+	envData["PASSWORD_PROTECTED"] = "true"
+	envData["EXTRACT_TO_SUBFOLDER"] = "true"
+
+	// Try to read actual .env file
+	if envFile, err := os.Open(".env"); err == nil {
+		defer envFile.Close()
+		scanner := bufio.NewScanner(envFile)
+		for scanner.Scan() {
+			line := strings.TrimSpace(scanner.Text())
+			if line != "" && !strings.HasPrefix(line, "#") {
+				if parts := strings.SplitN(line, "=", 2); len(parts) == 2 {
+					key := strings.TrimSpace(parts[0])
+					value := strings.TrimSpace(parts[1])
+					envData[key] = value
+				}
+			}
+		}
+	}
+
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"success": true,
+		"data":    envData,
+	})
+}
+
+func (r *Router) updateConfig(w http.ResponseWriter, req *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+
+	var updates map[string]string
+	if err := json.NewDecoder(req.Body).Decode(&updates); err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"success": false,
+			"error":   "Invalid JSON",
+		})
+		return
+	}
+
+	// Read existing .env file
+	envFile, err := os.Open(".env")
+	var envLines []string
+	if err == nil {
+		defer envFile.Close()
+		scanner := bufio.NewScanner(envFile)
+		for scanner.Scan() {
+			envLines = append(envLines, scanner.Text())
+		}
+	}
+
+	// Update values in memory
+	for key, value := range updates {
+		// Find and replace existing line or add new one
+		found := false
+		for i, line := range envLines {
+			if strings.HasPrefix(strings.TrimSpace(line), key+"=") {
+				envLines[i] = fmt.Sprintf("%s=%s", key, value)
+				found = true
+				break
+			}
+		}
+		if !found {
+			envLines = append(envLines, fmt.Sprintf("%s=%s", key, value))
+		}
+	}
+
+	// Write back to .env file
+	if err := os.WriteFile(".env", []byte(strings.Join(envLines, "\n")), 0644); err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"success": false,
+			"error":   fmt.Sprintf("Failed to write .env file: %v", err),
+		})
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"success": true,
+		"message": "Configuration updated successfully",
+		"data":    updates,
+	})
+}
+
 func (r *Router) openAPISpec(w http.ResponseWriter, req *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	w.WriteHeader(http.StatusOK)
 
-	// Read and serve the OpenAPI JSON file
+	// Read and serve OpenAPI JSON file
 	http.ServeFile(w, req, "openapi.json")
 }

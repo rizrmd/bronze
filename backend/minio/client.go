@@ -22,7 +22,7 @@ type MinIOClient struct {
 func NewMinIOClient(cfg *config.MinIOConfig) (*MinIOClient, error) {
 	client, err := minio.New(cfg.Endpoint, &minio.Options{
 		Creds:  credentials.NewStaticV4(cfg.AccessKey, cfg.SecretKey, ""),
-		Secure: cfg.UseSSL,
+		Secure: cfg.UseSSL(),
 		Region: cfg.Region,
 	})
 	if err != nil {

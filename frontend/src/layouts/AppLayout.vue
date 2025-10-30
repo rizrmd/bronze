@@ -110,24 +110,12 @@ const toggleSidebar = () => {
       </nav>
     </div>
 
-    <!-- Main Content -->
-    <div class="flex-1 flex flex-col overflow-hidden">
-      <!-- Header -->
-      <header class="bg-white border-b border-gray-200 px-6 py-4">
-        <div class="flex items-center justify-between">
-          <h1 class="text-2xl font-semibold text-gray-900">
-            {{ route.meta.title || 'Bronze' }}
-          </h1>
-          <div class="flex items-center space-x-4">
-            <!-- Add header actions here -->
-          </div>
-        </div>
-      </header>
-
-      <!-- Page Content -->
-      <main class="flex-1 overflow-auto p-6">
-        <router-view />
-      </main>
-    </div>
+     <!-- Main Content -->
+     <div class="flex-1 flex flex-col overflow-hidden">
+       <!-- Page Content -->
+       <main class="flex-1 overflow-auto p-6">
+         <router-view />
+       </main>
+     </div>
   </div>
 </template>

@@ -83,10 +83,9 @@ SERVER_PORT=8080
 
 ### MinIO Configuration
 ```bash
-MINIO_ENDPOINT=localhost:9000
+MINIO_ENDPOINT=http://localhost:9000
 MINIO_ACCESS_KEY=minioadmin
 MINIO_SECRET_KEY=minioadmin
-MINIO_USE_SSL=false
 MINIO_BUCKET=files
 MINIO_REGION=us-east-1
 ```

@@ -69,13 +69,8 @@ const formatFileSize = (bytes: number) => {
 }
 </script>
 
-<template>
-  <div class="space-y-6">
-    <!-- Page Header -->
-    <div>
-      <h2 class="text-3xl font-bold text-gray-900">Dashboard</h2>
-      <p class="mt-2 text-gray-600">Overview of your Bronze system</p>
-    </div>
+ <template>
+   <div class="space-y-6">
 
     <!-- Stats Grid -->
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">

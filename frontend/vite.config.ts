@@ -38,6 +38,11 @@ export default defineConfig({
         changeOrigin: true,
         secure: false,
       },
+      '/config': {
+        target: 'http://localhost:8080',
+        changeOrigin: true,
+        secure: false,
+      },
       '/openapi.json': {
         target: 'http://localhost:8080',
         changeOrigin: true,

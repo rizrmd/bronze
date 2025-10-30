@@ -32,10 +32,13 @@ func main() {
 
 	minioClient, err := minio.NewMinIOClient(&cfg.MinIO)
 	if err != nil {
-		log.Fatalf("Failed to create MinIO client: %v", err)
+		log.Printf("Warning: Failed to create MinIO client: %v", err)
+		log.Println("MinIO features will be disabled until connection is restored")
+		// Continue without MinIO for now
+		minioClient = nil
+	} else {
+		log.Println("MinIO client created successfully")
 	}
-
-	log.Println("MinIO client created successfully")
 
 	fileProcessor := processor.NewFileProcessor(cfg)
 	log.Println("File processor created successfully")
@@ -47,50 +50,58 @@ func main() {
 	workerPool.Start()
 	log.Printf("Worker pool started with %d workers", cfg.Processing.MaxWorkers)
 
-	// Create file watcher
-	eventStorage := watcher.NewMemoryEventStorage()
-	watcherConfig := watcher.Config{
-		Endpoint:        cfg.MinIO.Endpoint,
-		AccessKeyID:     cfg.MinIO.AccessKey,
-		SecretAccessKey: cfg.MinIO.SecretKey,
-		UseSSL:          cfg.MinIO.UseSSL,
-		Region:          cfg.MinIO.Region,
-		BucketName:      cfg.MinIO.Bucket,
-		PollInterval:    30 * time.Second,
-	}
+	// Create file watcher (only if MinIO is available)
+	var fileWatcher *watcher.FileWatcher
+	if minioClient != nil {
+		eventStorage := watcher.NewMemoryEventStorage()
+		watcherConfig := watcher.Config{
+			Endpoint:        cfg.MinIO.Endpoint,
+			AccessKeyID:     cfg.MinIO.AccessKey,
+			SecretAccessKey: cfg.MinIO.SecretKey,
+			UseSSL:          cfg.MinIO.UseSSL(),
+			Region:          cfg.MinIO.Region,
+			BucketName:      cfg.MinIO.Bucket,
+			PollInterval:    30 * time.Second,
+		}
 
-	fileWatcher, err := watcher.NewFileWatcher(watcherConfig, eventStorage)
-	if err != nil {
-		log.Fatalf("Failed to create file watcher: %v", err)
-	}
+		fileWatcher, err = watcher.NewFileWatcher(watcherConfig, eventStorage)
+		if err != nil {
+			log.Printf("Failed to create file watcher: %v", err)
+			fileWatcher = nil
+		} else {
+			// Set up event handler for file changes
+			fileWatcher.SetEventHandler(func(event *watcher.FileEvent) {
+				log.Printf("File event detected: %s - %s", event.EventType, event.Key)
 
-	// Set up event handler for file changes
-	fileWatcher.SetEventHandler(func(event *watcher.FileEvent) {
-		log.Printf("File event detected: %s - %s", event.EventType, event.Key)
+				// If this is a new file, create a processing job
+				if event.EventType == watcher.EventCreated {
+					job := processor.NewJob(
+						"decompress",
+						"", // local file path will be set by processor
+						cfg.MinIO.Bucket,
+						event.Key,
+						processor.PriorityMedium,
+					)
 
-		// If this is a new file, create a processing job
-		if event.EventType == watcher.EventCreated {
-			job := processor.NewJob(
-				"decompress",
-				"", // local file path will be set by processor
-				cfg.MinIO.Bucket,
-				event.Key,
-				processor.PriorityMedium,
-			)
+					if err := jobQueue.Enqueue(job); err != nil {
+						log.Printf("Failed to create job for file %s: %v", event.Key, err)
+					} else {
+						log.Printf("Created processing job for file: %s", event.Key)
+					}
+				}
+			})
 
-			if err := jobQueue.Enqueue(job); err != nil {
-				log.Printf("Failed to create job for file %s: %v", event.Key, err)
+			// Start file watcher
+			if err := fileWatcher.Start(); err != nil {
+				log.Printf("Failed to start file watcher: %v", err)
+				fileWatcher = nil
 			} else {
-				log.Printf("Created processing job for file: %s", event.Key)
+				log.Println("File watcher started successfully")
 			}
 		}
-	})
-
-	// Start the file watcher
-	if err := fileWatcher.Start(); err != nil {
-		log.Fatalf("Failed to start file watcher: %v", err)
+	} else {
+		log.Println("File watcher disabled (MinIO not available)")
 	}
-	log.Println("File watcher started successfully")
 
 	fileHandler := handlers.NewFileHandler(minioClient, fileProcessor)
 	jobHandler := handlers.NewJobHandler(jobQueue, workerPool)
@@ -128,8 +139,10 @@ func main() {
 	workerPool.Stop()
 	log.Println("Worker pool stopped")
 
-	fileWatcher.Stop()
-	log.Println("File watcher stopped")
+	if fileWatcher != nil {
+		fileWatcher.Stop()
+		log.Println("File watcher stopped")
+	}
 
 	log.Println("Server exited")
 }

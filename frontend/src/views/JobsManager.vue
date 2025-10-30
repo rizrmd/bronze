@@ -145,25 +145,21 @@ onMounted(() => {
 })
 </script>
 
-<template>
-  <div class="space-y-6">
-    <!-- Page Header -->
-    <div class="flex items-center justify-between">
-      <div>
-        <h2 class="text-3xl font-bold text-gray-900">Jobs</h2>
-        <p class="mt-2 text-gray-600">Manage and monitor processing jobs</p>
-      </div>
-      <div class="flex items-center space-x-3">
-        <Button @click="refreshData" variant="outline" size="sm">
-          <RefreshCw class="w-4 h-4 mr-2" />
-          Refresh
-        </Button>
-        <Button @click="createJobDialogOpen = true">
-          <Briefcase class="w-4 h-4 mr-2" />
-          Create Job
-        </Button>
-      </div>
-    </div>
+ <template>
+   <div class="space-y-6">
+     <!-- Page Actions -->
+     <div class="flex items-center justify-end">
+       <div class="flex items-center space-x-3">
+         <Button @click="refreshData" variant="outline" size="sm">
+           <RefreshCw class="w-4 h-4 mr-2" />
+           Refresh
+         </Button>
+         <Button @click="createJobDialogOpen = true">
+           <Briefcase class="w-4 h-4 mr-2" />
+           Create Job
+         </Button>
+       </div>
+     </div>
 
     <!-- Error Display -->
     <div v-if="error" class="bg-red-50 border border-red-200 rounded-md p-4">

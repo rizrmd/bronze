@@ -22,7 +22,6 @@ type MinIOConfig struct {
 	Endpoint  string `json:"endpoint"`
 	AccessKey string `json:"access_key"`
 	SecretKey string `json:"secret_key"`
-	UseSSL    bool   `json:"use_ssl"`
 	Bucket    string `json:"bucket"`
 	Region    string `json:"region"`
 }
@@ -54,7 +53,6 @@ func Load() (*Config, error) {
 			Endpoint:  getEnv("MINIO_ENDPOINT", "localhost:9000"),
 			AccessKey: getEnv("MINIO_ACCESS_KEY", "minioadmin"),
 			SecretKey: getEnv("MINIO_SECRET_KEY", "minioadmin"),
-			UseSSL:    getEnvBool("MINIO_USE_SSL", false),
 			Bucket:    getEnv("MINIO_BUCKET", "files"),
 			Region:    getEnv("MINIO_REGION", "us-east-1"),
 		},
@@ -83,6 +81,10 @@ func Load() (*Config, error) {
 
 func (c *Config) GetServerAddr() string {
 	return fmt.Sprintf("%s:%d", c.Server.Host, c.Server.Port)
+}
+
+func (c *MinIOConfig) UseSSL() bool {
+	return len(c.Endpoint) > 8 && c.Endpoint[:8] == "https://"
 }
 
 func getEnv(key, defaultValue string) string {

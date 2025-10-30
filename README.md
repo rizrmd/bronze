@@ -135,8 +135,8 @@ SERVER_PORT=8080
 MINIO_ENDPOINT=localhost:9000
 MINIO_ACCESS_KEY=minioadmin
 MINIO_SECRET_KEY=minioadmin
+MINIO_ENDPOINT=http://localhost:9000
 MINIO_BUCKET=bronze-files
-MINIO_USE_SSL=false
 MINIO_REGION=us-east-1
 
 # Processing

@@ -88,29 +88,25 @@ onMounted(() => {
 })
 </script>
 
-<template>
-  <div class="space-y-6">
-    <!-- Page Header -->
-    <div class="flex items-center justify-between">
-      <div>
-        <h2 class="text-3xl font-bold text-gray-900">Watcher Events</h2>
-        <p class="mt-2 text-gray-600">Monitor file change events and history</p>
-      </div>
-      <div class="flex items-center space-x-3">
-        <Button @click="refreshData" variant="outline" size="sm">
-          <RefreshCw class="w-4 h-4 mr-2" />
-          Refresh
-        </Button>
-        <Button
-          @click="handleMarkProcessed()"
-          :disabled="selectedEvents.length === 0"
-          variant="outline"
-        >
-          <CheckSquare class="w-4 h-4 mr-2" />
-          Mark as Processed ({{ selectedEvents.length }})
-        </Button>
-      </div>
-    </div>
+ <template>
+   <div class="space-y-6">
+     <!-- Page Actions -->
+     <div class="flex items-center justify-end">
+       <div class="flex items-center space-x-3">
+         <Button @click="refreshData" variant="outline" size="sm">
+           <RefreshCw class="w-4 h-4 mr-2" />
+           Refresh
+         </Button>
+         <Button
+           @click="handleMarkProcessed()"
+           :disabled="selectedEvents.length === 0"
+           variant="outline"
+         >
+           <CheckSquare class="w-4 h-4 mr-2" />
+           Mark as Processed ({{ selectedEvents.length }})
+         </Button>
+       </div>
+     </div>
 
     <!-- Error Display -->
     <div v-if="error" class="bg-red-50 border border-red-200 rounded-md p-4">

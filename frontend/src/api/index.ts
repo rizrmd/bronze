@@ -32,7 +32,7 @@ api.interceptors.response.use(
 export const apiClient = {
   // Health & Info
   async healthCheck(): Promise<ApiResponse> {
-    const { data } = await api.get('/health')
+    const { data } = await api.get('/')
     return data
   },
 
@@ -143,6 +143,17 @@ export const apiClient = {
 
   async markEventProcessed(eventId: string): Promise<ApiResponse> {
     const { data } = await api.post('/watcher/events/mark-processed', { event_id: eventId })
+    return data
+  },
+
+  // Configuration
+  async getConfig(): Promise<ApiResponse<Record<string, string>>> {
+    const { data } = await api.get('/config')
+    return data
+  },
+
+  async updateConfig(config: Record<string, string>): Promise<ApiResponse> {
+    const { data } = await api.put('/config', config)
     return data
   }
 }

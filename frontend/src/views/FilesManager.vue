@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
 import { useFiles } from '@/composables/useApi'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
-import { Input } from '@/components/ui/input'
+ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+ import { Button } from '@/components/ui/button'
+ import { Badge } from '@/components/ui/badge'
+ import { Input } from '@/components/ui/input'
+ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 import { 
   Upload, 
   Download, 
@@ -101,98 +102,88 @@ onMounted(() => {
 })
 </script>
 
-<template>
-  <div class="space-y-6">
-    <!-- Page Header -->
-    <div class="flex items-center justify-between">
-      <div>
-        <h2 class="text-3xl font-bold text-gray-900">Files</h2>
-        <p class="mt-2 text-gray-600">Manage your files in MinIO storage</p>
-      </div>
-      <div class="flex items-center space-x-3">
-        <Button @click="refreshFiles" variant="outline" size="sm">
-          <RefreshCw class="w-4 h-4 mr-2" />
-          Refresh
-        </Button>
-        <Button @click="uploadDialogOpen = true">
-          <Upload class="w-4 h-4 mr-2" />
-          Upload File
-        </Button>
-      </div>
-    </div>
+ <template>
+   <div class="space-y-6">
+     <!-- Page Actions -->
+     <div class="flex items-center justify-between">
+       <div class="flex-1 relative">
+         <Search class="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+         <Input
+           v-model="searchQuery"
+           placeholder="Search files..."
+           class="pl-10"
+         />
+       </div>
+       <div class="flex items-center space-x-3 ml-4">
+         <Button @click="refreshFiles" variant="outline" size="sm">
+           <RefreshCw class="w-4 h-4 mr-2" />
+           Refresh
+         </Button>
+         <Button @click="uploadDialogOpen = true">
+           <Upload class="w-4 h-4 mr-2" />
+           Upload File
+         </Button>
+       </div>
+     </div>
 
-    <!-- Error Display -->
-    <div v-if="error" class="bg-red-50 border border-red-200 rounded-md p-4">
-      <div class="flex">
-        <div class="ml-3">
-          <h3 class="text-sm font-medium text-red-800">Error</h3>
-          <div class="mt-2 text-sm text-red-700">
-            {{ error }}
-          </div>
-        </div>
-      </div>
-    </div>
+     <!-- Error Display -->
+     <div v-if="error" class="bg-red-50 border border-red-200 rounded-md p-4">
+       <div class="flex">
+         <div class="ml-3">
+           <h3 class="text-sm font-medium text-red-800">Error</h3>
+           <div class="mt-2 text-sm text-red-700">
+             {{ error }}
+           </div>
+         </div>
+       </div>
+     </div>
 
-    <!-- Upload Area -->
-    <Card>
-      <CardHeader>
-        <CardTitle>Upload Files</CardTitle>
-        <CardDescription>
-          Drag and drop files here or click to browse
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        <div
-          @drop="handleDrop"
-          @dragover="handleDragOver"
-          @dragleave="handleDragLeave"
-          :class="[
-            'border-2 border-dashed rounded-lg p-8 text-center transition-colors',
-            dragOver ? 'border-blue-400 bg-blue-50' : 'border-gray-300'
-          ]"
-        >
-          <Upload class="mx-auto h-12 w-12 text-gray-400" />
-          <div class="mt-4">
-            <label for="file-upload" class="cursor-pointer">
-              <span class="mt-2 block text-sm font-medium text-gray-900">
-                Drop files here or 
-                <span class="text-blue-600 hover:text-blue-500">browse</span>
-              </span>
-              <input
-                id="file-upload"
-                type="file"
-                class="sr-only"
-                @change="handleFileUpload"
-              />
-            </label>
+      <!-- Upload Dialog -->
+      <Dialog v-model:open="uploadDialogOpen">
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Upload Files</DialogTitle>
+            <DialogDescription>
+              Drag and drop files here or click to browse
+            </DialogDescription>
+          </DialogHeader>
+          <div
+            @drop="handleDrop"
+            @dragover="handleDragOver"
+            @dragleave="handleDragLeave"
+            :class="[
+              'border-2 border-dashed rounded-lg p-8 text-center transition-colors',
+              dragOver ? 'border-blue-400 bg-blue-50' : 'border-gray-300'
+            ]"
+          >
+            <Upload class="mx-auto h-12 w-12 text-gray-400" />
+            <div class="mt-4">
+              <label for="file-upload" class="cursor-pointer">
+                <span class="mt-2 block text-sm font-medium text-gray-900">
+                  Drop files here or 
+                  <span class="text-blue-600 hover:text-blue-500">browse</span>
+                </span>
+                <input
+                  id="file-upload"
+                  type="file"
+                  class="sr-only"
+                  @change="handleFileUpload"
+                />
+              </label>
+            </div>
           </div>
-        </div>
-      </CardContent>
-    </Card>
+        </DialogContent>
+      </Dialog>
 
-    <!-- Search and Filter -->
-    <Card>
-      <CardContent class="pt-6">
-        <div class="flex items-center space-x-4">
-          <div class="flex-1 relative">
-            <Search class="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-            <Input
-              v-model="searchQuery"
-              placeholder="Search files..."
-              class="pl-10"
-            />
-          </div>
-          <div v-if="selectedFiles.length > 0" class="flex items-center space-x-2">
-            <Badge variant="secondary">
-              {{ selectedFiles.length }} selected
-            </Badge>
-            <Button variant="outline" size="sm">
-              Delete Selected
-            </Button>
-          </div>
-        </div>
-      </CardContent>
-    </Card>
+     <!-- Selected Files Actions -->
+     <div v-if="selectedFiles.length > 0" class="flex items-center space-x-2">
+       <Badge variant="secondary">
+         {{ selectedFiles.length }} selected
+       </Badge>
+       <Button variant="outline" size="sm">
+         Delete Selected
+       </Button>
+     </div>
 
     <!-- Files List -->
     <Card>
