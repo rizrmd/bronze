@@ -22,6 +22,18 @@ func NewWatcherHandler(fileWatcher *watcher.FileWatcher) *WatcherHandler {
 
 // GetUnprocessedEvents returns unprocessed file events
 func (h *WatcherHandler) GetUnprocessedEvents(w http.ResponseWriter, r *http.Request) {
+	if h.watcher == nil {
+		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.WriteHeader(http.StatusServiceUnavailable)
+		json.NewEncoder(w).Encode(map[string]any{
+			"error":  "File watcher is not available",
+			"events": []interface{}{},
+			"count":  0,
+		})
+		return
+	}
+
 	// Parse limit parameter
 	limitStr := r.URL.Query().Get("limit")
 	limit := 50 // default limit
@@ -48,6 +60,18 @@ func (h *WatcherHandler) GetUnprocessedEvents(w http.ResponseWriter, r *http.Req
 
 // GetEventHistory returns file event history
 func (h *WatcherHandler) GetEventHistory(w http.ResponseWriter, r *http.Request) {
+	if h.watcher == nil {
+		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.WriteHeader(http.StatusServiceUnavailable)
+		json.NewEncoder(w).Encode(map[string]any{
+			"error":  "File watcher is not available",
+			"events": []interface{}{},
+			"count":  0,
+		})
+		return
+	}
+
 	// Parse limit parameter
 	limitStr := r.URL.Query().Get("limit")
 	limit := 100 // default limit
@@ -74,6 +98,16 @@ func (h *WatcherHandler) GetEventHistory(w http.ResponseWriter, r *http.Request)
 
 // MarkEventProcessed marks an event as processed
 func (h *WatcherHandler) MarkEventProcessed(w http.ResponseWriter, r *http.Request) {
+	if h.watcher == nil {
+		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.WriteHeader(http.StatusServiceUnavailable)
+		json.NewEncoder(w).Encode(map[string]string{
+			"error": "File watcher is not available",
+		})
+		return
+	}
+
 	var request struct {
 		EventID string `json:"event_id"`
 	}

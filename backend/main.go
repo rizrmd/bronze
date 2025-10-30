@@ -15,10 +15,23 @@ import (
 	"bronze-backend/processor"
 	"bronze-backend/routes"
 	"bronze-backend/watcher"
+
+	"github.com/joho/godotenv"
 )
 
 func main() {
 	log.Println("Starting Bronze Backend...")
+
+	// Load .env file if it exists
+	if err := godotenv.Load(); err != nil {
+		log.Println("No .env file found, using environment variables or defaults")
+	} else {
+		if wd, err := os.Getwd(); err == nil {
+			log.Printf("Loaded .env file from: %s/.env", wd)
+		} else {
+			log.Println("Loaded .env file successfully")
+		}
+	}
 
 	cfg, err := config.Load()
 	if err != nil {

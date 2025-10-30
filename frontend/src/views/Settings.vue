@@ -163,20 +163,22 @@ const fetchApiInfo = async () => {
              <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                <div>
                  <label class="block text-sm font-medium text-gray-700 mb-1">Server Host</label>
-                 <Input
-                   v-model="configChanges.SERVER_HOST"
-                   :disabled="!editingConfig"
-                   placeholder="localhost"
-                 />
+                  <Input
+                    :model-value="editingConfig ? configChanges.SERVER_HOST : config.SERVER_HOST"
+                    @input="updateConfigField('SERVER_HOST', $event.target.value)"
+                    :disabled="!editingConfig"
+                    placeholder="localhost"
+                  />
                </div>
                <div>
                  <label class="block text-sm font-medium text-gray-700 mb-1">Server Port</label>
-                 <Input
-                   v-model="configChanges.SERVER_PORT"
-                   :disabled="!editingConfig"
-                   type="number"
-                   placeholder="8080"
-                 />
+                  <Input
+                    :model-value="editingConfig ? configChanges.SERVER_PORT : config.SERVER_PORT"
+                    @input="updateConfigField('SERVER_PORT', $event.target.value)"
+                    :disabled="!editingConfig"
+                    type="number"
+                    placeholder="8080"
+                  />
                </div>
              </div>
            </div>
@@ -187,45 +189,50 @@ const fetchApiInfo = async () => {
              <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                <div>
                  <label class="block text-sm font-medium text-gray-700 mb-1">Endpoint</label>
-                 <Input
-                   v-model="configChanges.MINIO_ENDPOINT"
-                   :disabled="!editingConfig"
-                   placeholder="localhost:9000"
-                 />
+                  <Input
+                    :model-value="editingConfig ? configChanges.MINIO_ENDPOINT : config.MINIO_ENDPOINT"
+                    @input="updateConfigField('MINIO_ENDPOINT', $event.target.value)"
+                    :disabled="!editingConfig"
+                    placeholder="localhost:9000"
+                  />
                </div>
                <div>
                  <label class="block text-sm font-medium text-gray-700 mb-1">Bucket</label>
-                 <Input
-                   v-model="configChanges.MINIO_BUCKET"
-                   :disabled="!editingConfig"
-                   placeholder="files"
-                 />
+                  <Input
+                    :model-value="editingConfig ? configChanges.MINIO_BUCKET : config.MINIO_BUCKET"
+                    @input="updateConfigField('MINIO_BUCKET', $event.target.value)"
+                    :disabled="!editingConfig"
+                    placeholder="files"
+                  />
                </div>
                <div>
                  <label class="block text-sm font-medium text-gray-700 mb-1">Access Key</label>
-                 <Input
-                   v-model="configChanges.MINIO_ACCESS_KEY"
-                   :disabled="!editingConfig"
-                   type="password"
-                   placeholder="minioadmin"
-                 />
+                  <Input
+                    :model-value="editingConfig ? configChanges.MINIO_ACCESS_KEY : config.MINIO_ACCESS_KEY"
+                    @input="updateConfigField('MINIO_ACCESS_KEY', $event.target.value)"
+                    :disabled="!editingConfig"
+                    type="password"
+                    placeholder="minioadmin"
+                  />
                </div>
                <div>
                  <label class="block text-sm font-medium text-gray-700 mb-1">Secret Key</label>
-                 <Input
-                   v-model="configChanges.MINIO_SECRET_KEY"
-                   :disabled="!editingConfig"
-                   type="password"
-                   placeholder="minioadmin"
-                 />
+                  <Input
+                    :model-value="editingConfig ? configChanges.MINIO_SECRET_KEY : config.MINIO_SECRET_KEY"
+                    @input="updateConfigField('MINIO_SECRET_KEY', $event.target.value)"
+                    :disabled="!editingConfig"
+                    type="password"
+                    placeholder="minioadmin"
+                  />
                </div>
                 <div>
                   <label class="block text-sm font-medium text-gray-700 mb-1">Region</label>
-                  <Input
-                    v-model="configChanges.MINIO_REGION"
-                    :disabled="!editingConfig"
-                    placeholder="us-east-1"
-                  />
+                   <Input
+                     :model-value="editingConfig ? configChanges.MINIO_REGION : config.MINIO_REGION"
+                     @input="updateConfigField('MINIO_REGION', $event.target.value)"
+                     :disabled="!editingConfig"
+                     placeholder="us-east-1"
+                   />
                 </div>
              </div>
            </div>
@@ -236,37 +243,41 @@ const fetchApiInfo = async () => {
              <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                <div>
                  <label class="block text-sm font-medium text-gray-700 mb-1">Max Workers</label>
-                 <Input
-                   v-model="configChanges.MAX_WORKERS"
-                   :disabled="!editingConfig"
-                   type="number"
-                   placeholder="3"
-                 />
+                  <Input
+                    :model-value="editingConfig ? configChanges.MAX_WORKERS : config.MAX_WORKERS"
+                    @input="updateConfigField('MAX_WORKERS', $event.target.value)"
+                    :disabled="!editingConfig"
+                    type="number"
+                    placeholder="3"
+                  />
                </div>
                <div>
                  <label class="block text-sm font-medium text-gray-700 mb-1">Queue Size</label>
-                 <Input
-                   v-model="configChanges.QUEUE_SIZE"
-                   :disabled="!editingConfig"
+                  <Input
+                    :model-value="editingConfig ? configChanges.QUEUE_SIZE : config.QUEUE_SIZE"
+                    @input="updateConfigField('QUEUE_SIZE', $event.target.value)"
+                    :disabled="!editingConfig"
                    type="number"
                    placeholder="100"
                  />
                </div>
                <div>
                  <label class="block text-sm font-medium text-gray-700 mb-1">Watch Interval</label>
-                 <Input
-                   v-model="configChanges.WATCH_INTERVAL"
-                   :disabled="!editingConfig"
-                   placeholder="5s"
-                 />
+                  <Input
+                    :model-value="editingConfig ? configChanges.WATCH_INTERVAL : config.WATCH_INTERVAL"
+                    @input="updateConfigField('WATCH_INTERVAL', $event.target.value)"
+                    :disabled="!editingConfig"
+                    placeholder="5s"
+                  />
                </div>
                <div>
                  <label class="block text-sm font-medium text-gray-700 mb-1">Temp Directory</label>
-                 <Input
-                   v-model="configChanges.TEMP_DIR"
-                   :disabled="!editingConfig"
-                   placeholder="/tmp/bronze"
-                 />
+                  <Input
+                    :model-value="editingConfig ? configChanges.TEMP_DIR : config.TEMP_DIR"
+                    @input="updateConfigField('TEMP_DIR', $event.target.value)"
+                    :disabled="!editingConfig"
+                    placeholder="/tmp/bronze"
+                  />
                </div>
              </div>
            </div>
@@ -277,47 +288,52 @@ const fetchApiInfo = async () => {
              <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                <div>
                  <label class="block text-sm font-medium text-gray-700 mb-1">Max Extract Size</label>
-                 <Input
-                   v-model="configChanges.MAX_EXTRACT_SIZE"
-                   :disabled="!editingConfig"
-                   placeholder="1GB"
-                 />
+                  <Input
+                    :model-value="editingConfig ? configChanges.MAX_EXTRACT_SIZE : config.MAX_EXTRACT_SIZE"
+                    @input="updateConfigField('MAX_EXTRACT_SIZE', $event.target.value)"
+                    :disabled="!editingConfig"
+                    placeholder="1GB"
+                  />
                </div>
                <div>
                  <label class="block text-sm font-medium text-gray-700 mb-1">Max Files per Archive</label>
-                 <Input
-                   v-model="configChanges.MAX_FILES_PER_ARCHIVE"
-                   :disabled="!editingConfig"
-                   type="number"
-                   placeholder="1000"
-                 />
+                  <Input
+                    :model-value="editingConfig ? configChanges.MAX_FILES_PER_ARCHIVE : config.MAX_FILES_PER_ARCHIVE"
+                    @input="updateConfigField('MAX_FILES_PER_ARCHIVE', $event.target.value)"
+                    :disabled="!editingConfig"
+                    type="number"
+                    placeholder="1000"
+                  />
                </div>
                <div>
                  <label class="block text-sm font-medium text-gray-700 mb-1">Nested Archive Depth</label>
-                 <Input
-                   v-model="configChanges.NESTED_ARCHIVE_DEPTH"
-                   :disabled="!editingConfig"
-                   type="number"
-                   placeholder="3"
-                 />
+                  <Input
+                    :model-value="editingConfig ? configChanges.NESTED_ARCHIVE_DEPTH : config.NESTED_ARCHIVE_DEPTH"
+                    @input="updateConfigField('NESTED_ARCHIVE_DEPTH', $event.target.value)"
+                    :disabled="!editingConfig"
+                    type="number"
+                    placeholder="3"
+                  />
                </div>
                <div>
                  <label class="block text-sm font-medium text-gray-700 mb-1">Decompression Enabled</label>
-                 <select
-                   v-model="configChanges.DECOMPRESSION_ENABLED"
-                   :disabled="!editingConfig"
-                   class="w-full px-3 py-2 border border-gray-300 rounded-md"
-                 >
+                  <select
+                    :model-value="editingConfig ? configChanges.DECOMPRESSION_ENABLED : config.DECOMPRESSION_ENABLED"
+                    @change="updateConfigField('DECOMPRESSION_ENABLED', $event.target.value)"
+                    :disabled="!editingConfig"
+                    class="w-full px-3 py-2 border border-gray-300 rounded-md"
+                  >
                    <option value="true">Enabled</option>
                    <option value="false">Disabled</option>
                  </select>
                </div>
                <div>
                  <label class="block text-sm font-medium text-gray-700 mb-1">Password Protected</label>
-                 <select
-                   v-model="configChanges.PASSWORD_PROTECTED"
-                   :disabled="!editingConfig"
-                   class="w-full px-3 py-2 border border-gray-300 rounded-md"
+                  <select
+                    :model-value="editingConfig ? configChanges.PASSWORD_PROTECTED : config.PASSWORD_PROTECTED"
+                    @change="updateConfigField('PASSWORD_PROTECTED', $event.target.value)"
+                    :disabled="!editingConfig"
+                    class="w-full px-3 py-2 border border-gray-300 rounded-md"
                  >
                    <option value="true">Allowed</option>
                    <option value="false">Not Allowed</option>
@@ -325,10 +341,11 @@ const fetchApiInfo = async () => {
                </div>
                <div>
                  <label class="block text-sm font-medium text-gray-700 mb-1">Extract to Subfolder</label>
-                 <select
-                   v-model="configChanges.EXTRACT_TO_SUBFOLDER"
-                   :disabled="!editingConfig"
-                   class="w-full px-3 py-2 border border-gray-300 rounded-md"
+                  <select
+                    :model-value="editingConfig ? configChanges.EXTRACT_TO_SUBFOLDER : config.EXTRACT_TO_SUBFOLDER"
+                    @change="updateConfigField('EXTRACT_TO_SUBFOLDER', $event.target.value)"
+                    :disabled="!editingConfig"
+                    class="w-full px-3 py-2 border border-gray-300 rounded-md"
                  >
                    <option value="true">Yes</option>
                    <option value="false">No</option>
@@ -365,7 +382,7 @@ const fetchApiInfo = async () => {
                  max="10"
                  class="w-32"
                />
-               <Button @click="handleUpdateWorkers" :disabled="loading">
+                <Button @click="handleUpdateWorkers" :disabled="jobsLoading">
                  <Save class="w-4 h-4 mr-2" />
                  Update
                </Button>

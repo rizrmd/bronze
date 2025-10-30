@@ -44,6 +44,7 @@ export function useConfig() {
 
   const loading = ref(false)
   const error = ref<string | null>(null)
+  let fetched = false
 
   const serverConfig = computed(() => ({
     host: config.value.SERVER_HOST,
@@ -80,12 +81,18 @@ export function useConfig() {
       const response = await apiClient.getConfig()
       if (response.success && response.data) {
         config.value = { ...config.value, ...response.data }
+        fetched = true
       }
     } catch (err) {
       error.value = err instanceof Error ? err.message : 'Failed to fetch configuration'
     } finally {
       loading.value = false
     }
+  }
+
+  // Auto-fetch config on first use
+  if (!fetched && !loading.value) {
+    fetchConfig()
   }
 
   const updateConfig = async (updates: Partial<ConfigData>) => {
