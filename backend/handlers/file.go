@@ -91,6 +91,12 @@ func (h *FileHandler) UploadFile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Check if MinIO is available
+	if h.minioClient == nil {
+		h.writeError(w, "MinIO storage is not available", http.StatusServiceUnavailable, fmt.Errorf("MinIO client not initialized"))
+		return
+	}
+
 	ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
 	defer cancel()
 
@@ -128,6 +134,12 @@ func (h *FileHandler) DownloadFile(w http.ResponseWriter, r *http.Request) {
 	objectName = filepath.Clean(objectName)
 	if strings.HasPrefix(objectName, "/") || strings.Contains(objectName, "..") {
 		h.writeError(w, "Invalid object name", http.StatusBadRequest, nil)
+		return
+	}
+
+	// Check if MinIO is available
+	if h.minioClient == nil {
+		h.writeError(w, "MinIO storage is not available", http.StatusServiceUnavailable, fmt.Errorf("MinIO client not initialized"))
 		return
 	}
 
@@ -173,6 +185,12 @@ func (h *FileHandler) DownloadFile(w http.ResponseWriter, r *http.Request) {
 func (h *FileHandler) ListFiles(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	// Check if MinIO is available
+	if h.minioClient == nil {
+		h.writeError(w, "MinIO storage is not available", http.StatusServiceUnavailable, fmt.Errorf("MinIO client not initialized"))
 		return
 	}
 
@@ -307,6 +325,12 @@ func (h *FileHandler) GetPresignedURL(w http.ResponseWriter, r *http.Request) {
 	objectName = filepath.Clean(objectName)
 	if strings.HasPrefix(objectName, "/") || strings.Contains(objectName, "..") {
 		h.writeError(w, "Invalid object name", http.StatusBadRequest, nil)
+		return
+	}
+
+	// Check if MinIO is available
+	if h.minioClient == nil {
+		h.writeError(w, "MinIO storage is not available", http.StatusServiceUnavailable, fmt.Errorf("MinIO client not initialized"))
 		return
 	}
 
