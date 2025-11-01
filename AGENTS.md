@@ -46,3 +46,18 @@
 - **NEVER use node** - Always use `bun` for running JavaScript/TypeScript
 - Root package.json uses npm only for orchestrating backend and frontend with concurrently
 - Frontend development should always use `bun run dev`, `bun run build`, etc.
+
+## Decompression Settings
+- **No limitations**: Decompression settings should not have any artificial limits
+- If there are limitations in decompression, it is considered a bug and should be fixed
+- Ensure decompression can handle files of any size and complexity
+
+## Environment Configuration
+- **NEVER restore .env from .env.example** - The .env file should not be automatically created from .env.example
+- Environment variables should be configured manually or through other means
+- Default values are provided in config/config.go for all required settings
+
+## Agent Guidelines
+- **NEVER run frontend dev server yourself** - Do not execute `bun run dev` or similar commands to start the development server
+- Focus on code changes and let users manage their own development environment
+- Only run build commands for type checking and validation purposes

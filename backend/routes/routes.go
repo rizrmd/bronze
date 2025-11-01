@@ -8,7 +8,10 @@ import (
 	"os"
 	"strings"
 
-	"bronze-backend/handlers"
+	"bronze-backend/data_browser"
+	"bronze-backend/files"
+	"bronze-backend/jobs"
+	"bronze-backend/monitoring"
 	"github.com/gorilla/mux"
 )
 
@@ -17,9 +20,11 @@ type Router struct {
 }
 
 func NewRouter(
-	fileHandler *handlers.FileHandler,
-	jobHandler *handlers.JobHandler,
-	watcherHandler *handlers.WatcherHandler,
+	fileHandler *files.FileHandler,
+	jobHandler *jobs.JobHandler,
+	watcherHandler *monitoring.WatcherHandler,
+	dataBrowserHandler *data_browser.DataBrowserHandler,
+	exportHandler *data_browser.ExportHandler,
 ) *Router {
 	router := mux.NewRouter()
 
@@ -27,15 +32,17 @@ func NewRouter(
 		router: router,
 	}
 
-	r.setupRoutes(fileHandler, jobHandler, watcherHandler)
+	r.setupRoutes(fileHandler, jobHandler, watcherHandler, dataBrowserHandler, exportHandler)
 
 	return r
 }
 
 func (r *Router) setupRoutes(
-	fileHandler *handlers.FileHandler,
-	jobHandler *handlers.JobHandler,
-	watcherHandler *handlers.WatcherHandler,
+	fileHandler *files.FileHandler,
+	jobHandler *jobs.JobHandler,
+	watcherHandler *monitoring.WatcherHandler,
+	dataBrowserHandler *data_browser.DataBrowserHandler,
+	exportHandler *data_browser.ExportHandler,
 ) {
 	// Add CORS middleware
 	r.router.Use(func(next http.Handler) http.Handler {
@@ -57,39 +64,71 @@ func (r *Router) setupRoutes(
 	r.router.HandleFunc("/health", r.healthCheck).Methods("GET")
 	r.router.HandleFunc("/", r.healthCheck).Methods("GET")
 
-	// File routes
-	fileRouter := r.router.PathPrefix("/files").Subrouter()
-	fileRouter.HandleFunc("", fileHandler.UploadFile).Methods("POST")
+	// File routes - comprehensive endpoints
+	fileRouter := r.router.PathPrefix("/api/files").Subrouter()
+	
+	// New multi-folder endpoint
+	fileRouter.HandleFunc("/browse", fileHandler.MultiFolderBrowse).Methods("POST")
+	
+	// Specific operation endpoints
+	fileRouter.HandleFunc("/upload", fileHandler.UploadFile).Methods("POST")
+	fileRouter.HandleFunc("/download/{filename}", fileHandler.DownloadFile).Methods("GET")
+	fileRouter.HandleFunc("/info/{filename}", fileHandler.GetFileInfo).Methods("GET")
+	fileRouter.HandleFunc("/presigned/{filename}", fileHandler.GetPresignedURL).Methods("GET")
+	fileRouter.HandleFunc("/delete", fileHandler.DeleteFile).Methods("POST")
+	fileRouter.HandleFunc("/copy", fileHandler.CopyFile).Methods("POST")
+	fileRouter.HandleFunc("/extract", fileHandler.ExtractArchive).Methods("POST")
+	
+	// Legacy root-level endpoints for compatibility
 	fileRouter.HandleFunc("", fileHandler.ListFiles).Methods("GET")
+	fileRouter.HandleFunc("", fileHandler.BatchListFiles).Methods("POST")
+	fileRouter.HandleFunc("", fileHandler.DeleteFilesByPrefix).Methods("DELETE")
 	fileRouter.HandleFunc("/{filename}", fileHandler.DownloadFile).Methods("GET")
-	fileRouter.HandleFunc("/{filename}", fileHandler.GetFileInfo).Methods("GET")
-	fileRouter.HandleFunc("/{filename}", fileHandler.DeleteFile).Methods("DELETE")
+	fileRouter.HandleFunc("/{filename}/info", fileHandler.GetFileInfo).Methods("GET")
 	fileRouter.HandleFunc("/{filename}/presigned", fileHandler.GetPresignedURL).Methods("GET")
+	fileRouter.HandleFunc("/{filename}", fileHandler.DeleteFile).Methods("DELETE")
+
+	// Bucket management routes
+	bucketRouter := r.router.PathPrefix("/api/buckets").Subrouter()
+	bucketRouter.HandleFunc("", fileHandler.ListBuckets).Methods("GET")
+	bucketRouter.HandleFunc("/current", fileHandler.GetCurrentBucket).Methods("GET")
+	bucketRouter.HandleFunc("/status", fileHandler.GetBucketStatus).Methods("GET")
+	bucketRouter.HandleFunc("/set", fileHandler.SetBucket).Methods("POST")
 
 	// Job routes
-	jobRouter := r.router.PathPrefix("/jobs").Subrouter()
+	jobRouter := r.router.PathPrefix("/api/jobs").Subrouter()
 	jobRouter.HandleFunc("", jobHandler.CreateJob).Methods("POST")
 	jobRouter.HandleFunc("", jobHandler.GetJobs).Methods("GET")
 	jobRouter.HandleFunc("/stats", jobHandler.GetStats).Methods("GET")
 	jobRouter.HandleFunc("/workers", jobHandler.UpdateWorkerCount).Methods("PUT")
+	jobRouter.HandleFunc("/workers/calculate-max", jobHandler.CalculateMaxWorkers).Methods("GET")
 	jobRouter.HandleFunc("/workers/active", jobHandler.GetActiveJobs).Methods("GET")
 	jobRouter.HandleFunc("/{id}", jobHandler.GetJob).Methods("GET")
 	jobRouter.HandleFunc("/{id}", jobHandler.CancelJob).Methods("DELETE")
 	jobRouter.HandleFunc("/{id}/priority", jobHandler.UpdateJobPriority).Methods("PUT")
 
 	// Watcher routes
-	watcherRouter := r.router.PathPrefix("/watcher").Subrouter()
+	watcherRouter := r.router.PathPrefix("/api/watcher").Subrouter()
 	watcherRouter.HandleFunc("/events/unprocessed", watcherHandler.GetUnprocessedEvents).Methods("GET")
 	watcherRouter.HandleFunc("/events/history", watcherHandler.GetEventHistory).Methods("GET")
 	watcherRouter.HandleFunc("/events/mark-processed", watcherHandler.MarkEventProcessed).Methods("POST")
 
+	// Data browser routes
+	dataRouter := r.router.PathPrefix("/api/data").Subrouter()
+	dataRouter.HandleFunc("/browse", dataBrowserHandler.BrowseData).Methods("POST")
+	dataRouter.HandleFunc("/files", dataBrowserHandler.ListDataFiles).Methods("GET")
+
+	// Export routes
+	dataRouter.HandleFunc("/export-single", exportHandler.ExportSingleFile).Methods("POST")
+	dataRouter.HandleFunc("/export-multiple", exportHandler.ExportMultipleFiles).Methods("POST")
+
 	// Configuration routes
-	r.router.HandleFunc("/config", r.getConfig).Methods("GET")
-	r.router.HandleFunc("/config", r.updateConfig).Methods("PUT")
+	r.router.HandleFunc("/api/config", r.getConfig).Methods("GET")
+	r.router.HandleFunc("/api/config", r.updateConfig).Methods("PUT")
 
 	// API documentation routes
 	r.router.HandleFunc("/api", r.apiInfo).Methods("GET")
-	r.router.HandleFunc("/openapi.json", r.openAPISpec).Methods("GET")
+	r.router.HandleFunc("/api/openapi.json", r.openAPISpec).Methods("GET")
 }
 
 func (r *Router) GetRouter() *mux.Router {
@@ -116,98 +155,177 @@ func (r *Router) apiInfo(w http.ResponseWriter, req *http.Request) {
 		"openapi":     "/openapi.json",
 		"endpoints": map[string]any{
 			"files": map[string]any{
+				"browse": map[string]any{
+					"method": "POST",
+					"path":   "/api/files/browse",
+					"description": "Browse multiple folders with rich metadata and recursive options",
+					"body": map[string]any{
+						"folders": "[]FolderRequest - Array of folder requests with options",
+						"limit":   "int (optional) - Maximum items per folder",
+					},
+				},
 				"upload": map[string]any{
 					"method":      "POST",
-					"path":        "/files",
+					"path":        "/api/files/upload",
 					"description": "Upload a file to MinIO",
-				},
-				"list": map[string]any{
-					"method":       "GET",
-					"path":         "/files",
-					"description":  "List all files in MinIO bucket",
-					"query_params": []string{"prefix"},
+					"body":        "multipart/form-data with file field",
 				},
 				"download": map[string]any{
 					"method":      "GET",
-					"path":        "/files/{filename}",
+					"path":        "/api/files/download/{filename}",
 					"description": "Download a specific file",
 				},
 				"info": map[string]any{
 					"method":      "GET",
-					"path":        "/files/{filename}",
+					"path":        "/api/files/info/{filename}",
 					"description": "Get file information",
 				},
 				"delete": map[string]any{
-					"method":      "DELETE",
-					"path":        "/files/{filename}",
+					"method":      "POST",
+					"path":        "/api/files/delete",
 					"description": "Delete a specific file",
+					"body": map[string]any{
+						"filename": "string - File to delete",
+					},
 				},
 				"presigned": map[string]any{
 					"method":       "GET",
-					"path":         "/files/{filename}/presigned",
+					"path":         "/api/files/presigned/{filename}",
 					"description":  "Generate presigned URL for file access",
 					"query_params": []string{"expiry"},
+				},
+				"copy": map[string]any{
+					"method":      "POST",
+					"path":        "/api/files/copy",
+					"description": "Copy a file to a new location",
+					"body": map[string]any{
+						"source":      "string - Source file path",
+						"destination": "string - Destination file path",
+					},
+				},
+				"extract": map[string]any{
+					"method":      "POST",
+					"path":        "/api/files/extract",
+					"description": "Extract archive files (ZIP, TAR, TAR.GZ)",
+					"body": map[string]any{
+						"filename":           "string - Archive file to extract",
+						"destination_folder":  "string (optional) - Extract to specific folder",
+						"delete_after":       "bool (optional) - Delete archive after extraction",
+					},
+				},
+			},
+			"buckets": map[string]any{
+				"list": map[string]any{
+					"method":      "GET",
+					"path":        "/api/buckets",
+					"description": "List all available buckets",
+				},
+				"current": map[string]any{
+					"method":      "GET",
+					"path":        "/api/buckets/current",
+					"description": "Get currently active bucket",
+				},
+				"status": map[string]any{
+					"method":      "GET",
+					"path":        "/api/buckets/status",
+					"description": "Get bucket status and availability",
+				},
+				"set": map[string]any{
+					"method":      "POST",
+					"path":        "/api/buckets/set",
+					"description": "Set active bucket",
+					"body": map[string]any{
+						"bucket_name": "string",
+					},
 				},
 			},
 			"jobs": map[string]any{
 				"create": map[string]any{
 					"method":      "POST",
-					"path":        "/jobs",
+					"path":        "/api/jobs",
 					"description": "Create a new processing job",
 				},
 				"list": map[string]any{
 					"method":       "GET",
-					"path":         "/jobs",
+					"path":         "/api/jobs",
 					"description":  "List all jobs",
 					"query_params": []string{"status"},
 				},
 				"get": map[string]any{
 					"method":      "GET",
-					"path":        "/jobs/{id}",
+					"path":        "/api/jobs/{id}",
 					"description": "Get specific job details",
 				},
 				"cancel": map[string]any{
 					"method":      "DELETE",
-					"path":        "/jobs/{id}",
+					"path":        "/api/jobs/{id}",
 					"description": "Cancel a specific job",
 				},
 				"update_priority": map[string]any{
 					"method":      "PUT",
-					"path":        "/jobs/{id}/priority",
+					"path":        "/api/jobs/{id}/priority",
 					"description": "Update job priority",
 				},
 				"stats": map[string]any{
 					"method":      "GET",
-					"path":        "/jobs/stats",
+					"path":        "/api/jobs/stats",
 					"description": "Get job queue and worker statistics",
 				},
 				"update_workers": map[string]any{
 					"method":      "PUT",
-					"path":        "/jobs/workers",
+					"path":        "/api/jobs/workers",
 					"description": "Update worker pool size",
+				},
+				"calculate_max_workers": map[string]any{
+					"method":      "GET",
+					"path":        "/api/jobs/workers/calculate-max",
+					"description": "Calculate optimal number of workers based on CPU cores",
 				},
 				"active_jobs": map[string]any{
 					"method":      "GET",
-					"path":        "/jobs/workers/active",
+					"path":        "/api/jobs/workers/active",
 					"description": "Get currently active jobs",
+				},
+			},
+			"data": map[string]any{
+				"browse": map[string]any{
+					"method":      "POST",
+					"path":        "/api/data/browse",
+					"description": "Browse data from Excel (XLSX, XLS, XLSM), CSV, or MDB files in S3",
+					"body": map[string]any{
+						"file_name":           "string (required)",
+						"sheet_name":          "string (optional, for Excel files)",
+						"max_rows":            "int (optional, default 100, max 10000)",
+						"offset":              "int (optional, default 0)",
+						"has_headers":         "bool (optional, default false)",
+						"treat_as_csv":        "bool (optional, default false)",
+						"auto_detect_headers": "bool (optional, default false)",
+						"stream_mode":         "bool (optional, default false)",
+						"chunk_size":          "int (optional, default 1000, streaming only)",
+					},
+				},
+				"files": map[string]any{
+					"method":      "GET",
+					"path":        "/api/data/files",
+					"description": "List all supported data files (Excel XLSX/XLS/XLSM, CSV, MDB)",
 				},
 			},
 			"watcher": map[string]any{
 				"unprocessed_events": map[string]any{
 					"method":       "GET",
-					"path":         "/watcher/events/unprocessed",
+					"path":         "/api/watcher/events/unprocessed",
 					"description":  "Get unprocessed file change events",
 					"query_params": []string{"limit"},
 				},
 				"event_history": map[string]any{
 					"method":       "GET",
-					"path":         "/watcher/events/history",
+					"path":         "/api/watcher/events/history",
 					"description":  "Get file change event history",
 					"query_params": []string{"limit"},
 				},
 				"mark_processed": map[string]any{
 					"method":      "POST",
-					"path":        "/watcher/events/mark-processed",
+					"path":        "/api/watcher/events/mark-processed",
 					"description": "Mark a file event as processed",
 				},
 			},
@@ -215,6 +333,7 @@ func (r *Router) apiInfo(w http.ResponseWriter, req *http.Request) {
 		"features": []string{
 			"MinIO object storage integration",
 			"File upload/download/management",
+			"Bucket management and selection",
 			"Priority-based job queue",
 			"Configurable worker pool",
 			"Archive decompression (ZIP, TAR, TAR.GZ)",
@@ -223,6 +342,10 @@ func (r *Router) apiInfo(w http.ResponseWriter, req *http.Request) {
 			"File watching and change tracking",
 			"Automatic job creation for new files",
 			"Event history and processing status",
+			"Unified data browser for Excel (XLSX/XLS/XLSM), CSV, MDB files",
+			"Streaming support for large CSV files",
+			"Auto-detection of delimiters and headers",
+			"Universal CSV processing (any file extension)",
 			"RESTful API",
 		},
 	}
@@ -241,7 +364,7 @@ func (r *Router) getConfig(w http.ResponseWriter, req *http.Request) {
 
 	// Default values
 	envData["SERVER_HOST"] = "localhost"
-	envData["SERVER_PORT"] = "8080"
+	envData["SERVER_PORT"] = "8060"
 	envData["MINIO_ENDPOINT"] = "localhost:9000"
 	envData["MINIO_ACCESS_KEY"] = "minioadmin"
 	envData["MINIO_SECRET_KEY"] = "minioadmin"

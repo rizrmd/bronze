@@ -46,9 +46,9 @@ npm run dev -- --install
 ```
 
 This will start:
-- **Backend**: http://localhost:8080
-- **Frontend**: http://localhost:5173
-- **API Docs**: http://localhost:8080/api
+- **Backend**: http://localhost:8060
+- **Frontend**: http://localhost:8070
+- **API Docs**: http://localhost:8060/api
 
 The frontend is configured to proxy API requests to the backend, so no CORS issues occur.
 
@@ -129,7 +129,7 @@ The backend uses environment variables. See `.env.example` for all available opt
 ```bash
 # Server
 SERVER_HOST=0.0.0.0
-SERVER_PORT=8080
+SERVER_PORT=8060
 
 # MinIO
 MINIO_ENDPOINT=localhost:9000
@@ -153,7 +153,7 @@ The frontend uses Vite environment variables:
 
 ```bash
 # API URL (empty for proxy in development)
-VITE_API_URL=http://localhost:8080
+VITE_API_URL=http://localhost:8060
 ```
 
 ## 📊 Features
@@ -167,6 +167,67 @@ VITE_API_URL=http://localhost:8080
 - ✅ **File Watching**: Real-time file change monitoring
 - ✅ **REST API**: Complete OpenAPI specification
 - ✅ **Health Checks**: System monitoring endpoints
+
+## ⚙️ Job System Architecture
+
+Bronze features a robust job processing system built on a priority queue and worker pool architecture for efficient background task management.
+
+### Core Components
+
+**Job Model**: Each job contains:
+- Unique ID, type, and priority level (high/medium/low)
+- Status tracking (pending/processing/completed/failed/cancelled)
+- File metadata (path, bucket, object name)
+- Timestamps (created, started, completed)
+- Progress tracking and result storage
+- Custom metadata for extensibility
+
+**Priority Queue**: 
+- Implemented as a priority heap that orders jobs by priority first, then creation time
+- High-priority jobs are processed before medium and low ones
+- Thread-safe with concurrent access support
+- Configurable queue size to prevent memory overflow
+
+**Worker Pool**:
+- Configurable number of workers (default based on CPU cores)
+- Workers continuously pull jobs from the queue and process them concurrently
+- Dynamic worker count adjustment without restart
+- Graceful shutdown with job completion guarantees
+
+### Job Lifecycle
+
+1. **Creation**: Jobs are created via API with file path, bucket, object name, and priority
+2. **Queuing**: Jobs enter the priority queue and wait for available workers
+3. **Processing**: Workers pick up jobs, mark them as processing, and execute the job processor
+4. **Completion**: Jobs finish with success/failure status and results
+5. **Tracking**: Real-time progress updates and status changes are maintained
+
+### Job Processing
+
+Jobs support various file processing operations:
+- Archive decompression (ZIP, TAR, TAR.GZ)
+- File analysis and metadata extraction
+- Custom processing pipelines
+- Progress tracking with percentage completion
+
+### API Management
+
+The job system provides comprehensive API operations:
+- **CRUD Operations**: Create, list, get, cancel jobs
+- **Priority Management**: Update job priority (only for pending jobs)
+- **Monitoring**: View statistics, active jobs, and system health
+- **Worker Management**: Adjust worker count dynamically
+- **Progress Tracking**: Real-time job status and progress updates
+
+### Frontend Integration
+
+The JobsManager interface provides:
+- Real-time job monitoring with auto-refresh
+- Job filtering and search capabilities
+- Visual progress indicators
+- Priority adjustment controls
+- Cancellation functionality
+- Statistics dashboard with success rates and processing times
 
 ### Frontend
 - ✅ **Modern UI**: Vue 3 with Composition API
@@ -231,7 +292,7 @@ RUN apk --no-cache add ca-certificates
 WORKDIR /app
 COPY --from=backend-builder /app/backend/bronze-backend .
 COPY --from=frontend-builder /app/frontend/dist ./frontend
-EXPOSE 8080
+EXPOSE 8060
 CMD ["./bronze-backend"]
 ```
 
@@ -276,7 +337,7 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 
 ### Common Issues
 
-1. **Port conflicts**: Ensure ports 8080 and 5173 are available
+1. **Port conflicts**: Ensure ports 8060 and 8070 are available
 2. **MinIO connection**: Check MinIO is running and credentials are correct
 3. **CORS issues**: In development, the frontend proxies requests, so CORS shouldn't be an issue
 4. **Build failures**: Ensure all dependencies are installed with `npm run install`
@@ -290,7 +351,7 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 
 ## 📚 Documentation
 
-- **API Documentation**: http://localhost:8080/api (when running)
-- **OpenAPI Spec**: http://localhost:8080/openapi.json
+- **API Documentation**: http://localhost:8060/api (when running)
+- **OpenAPI Spec**: http://localhost:8060/openapi.json
 - **Frontend Components**: See `frontend/src/components/` directory
 - **Backend Handlers**: See `backend/handlers/` directory

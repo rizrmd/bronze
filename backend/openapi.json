@@ -15,7 +15,7 @@
   },
   "servers": [
     {
-      "url": "http://localhost:8080",
+      "url": "http://localhost:8060",
       "description": "Development server"
     }
   ],
@@ -491,6 +491,35 @@
         }
       }
     },
+    "/jobs/workers/calculate-max": {
+      "get": {
+        "summary": "Calculate maximum workers",
+        "description": "Calculate the optimal number of workers based on CPU cores",
+        "tags": ["Jobs"],
+        "responses": {
+          "200": {
+            "description": "Maximum workers calculated successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CalculateMaxWorkersResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/jobs/workers/active": {
       "get": {
         "summary": "Get active jobs",
@@ -697,13 +726,13 @@
           {
             "name": "limit",
             "in": "query",
-            "description": "Maximum number of events to return (default: 50)",
+            "description": "Maximum number of events to return (optional, no limit by default)",
             "required": false,
             "schema": {
               "type": "integer",
               "minimum": 1,
-              "maximum": 1000,
-              "default": 50
+
+              "default": 0
             }
           }
         ],
@@ -740,13 +769,13 @@
           {
             "name": "limit",
             "in": "query",
-            "description": "Maximum number of events to return (default: 100)",
+            "description": "Maximum number of events to return (optional, no limit by default)",
             "required": false,
             "schema": {
               "type": "integer",
               "minimum": 1,
-              "maximum": 1000,
-              "default": 100
+
+              "default": 0
             }
           }
         ],
@@ -806,6 +835,84 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/data/browse": {
+      "post": {
+        "summary": "Browse data from files",
+        "description": "Browse and retrieve data from Excel, CSV, or MDB files stored in S3",
+        "tags": ["Data"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BrowseRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Data browsed successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BrowseResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/data/files": {
+      "get": {
+        "summary": "List data files",
+        "description": "List all supported data files (Excel, CSV, MDB) with metadata",
+        "tags": ["Data"],
+        "responses": {
+          "200": {
+            "description": "Data files listed successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DataFilesResponse"
                 }
               }
             }
@@ -1220,11 +1327,35 @@
           "count": {
             "type": "integer",
             "minimum": 1,
-            "maximum": 100,
             "description": "Number of workers",
             "example": 5
           }
         }
+      },
+      "CalculateMaxWorkersResponse": {
+        "allOf": [
+          { "$ref": "#/components/schemas/SuccessResponse" },
+          {
+            "type": "object",
+            "properties": {
+              "cpu_cores": {
+                "type": "integer",
+                "description": "Number of available CPU cores",
+                "example": 8
+              },
+              "max_workers": {
+                "type": "integer",
+                "description": "Calculated maximum number of workers",
+                "example": 16
+              },
+              "recommended": {
+                "type": "integer",
+                "description": "Recommended number of workers",
+                "example": 16
+              }
+            }
+          }
+        ]
       },
       "FileEvent": {
         "type": "object",
@@ -1307,6 +1438,173 @@
             "example": "example-file-1234567890"
           }
         }
+      },
+      "BrowseRequest": {
+        "type": "object",
+        "required": ["file_name"],
+        "properties": {
+          "file_name": {
+            "type": "string",
+            "description": "Name of file to browse",
+            "example": "data.xlsx"
+          },
+          "sheet_name": {
+            "type": "string",
+            "description": "Name of sheet to browse (Excel only)",
+            "example": "Sheet1"
+          },
+          "max_rows": {
+            "type": "integer",
+            "description": "Maximum number of rows to return (default: 100, max: 10000)",
+            "minimum": 1,
+            "maximum": 10000,
+            "example": 100
+          },
+          "offset": {
+            "type": "integer",
+            "description": "Number of rows to skip (default: 0)",
+            "minimum": 0,
+            "example": 0
+          },
+          "has_headers": {
+            "type": "boolean",
+            "description": "Whether the first row contains headers",
+            "example": true
+          }
+        }
+      },
+      "BrowseResponse": {
+        "allOf": [
+          { "$ref": "#/components/schemas/SuccessResponse" },
+          {
+            "type": "object",
+            "properties": {
+              "data_type": {
+                "type": "string",
+                "enum": ["excel", "csv", "mdb"],
+                "example": "excel"
+              },
+              "file_name": {
+                "type": "string",
+                "example": "data.xlsx"
+              },
+              "sheet_name": {
+                "type": "string",
+                "description": "Sheet name (Excel only)",
+                "example": "Sheet1"
+              },
+              "columns": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "example": ["Name", "Age", "City"]
+              },
+              "rows": {
+                "type": "array",
+                "items": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "example": [
+                  ["John Doe", "30", "New York"],
+                  ["Jane Smith", "25", "Los Angeles"]
+                ]
+              },
+              "total_rows": {
+                "type": "integer",
+                "format": "int64",
+                "example": 1000
+              },
+              "row_count": {
+                "type": "integer",
+                "example": 2
+              },
+              "offset": {
+                "type": "integer",
+                "example": 0
+              },
+              "has_headers": {
+                "type": "boolean",
+                "example": true
+              },
+              "sheets": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "description": "Available sheets (Excel only)",
+                "example": ["Sheet1", "Sheet2", "Data"]
+              }
+            }
+          }
+        ]
+      },
+      "DataFileInfo": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "example": "data.xlsx"
+          },
+          "size": {
+            "type": "integer",
+            "format": "int64",
+            "example": 1024000
+          },
+          "last_modified": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2023-01-01T00:00:00Z"
+          },
+          "data_type": {
+            "type": "string",
+            "enum": ["excel", "csv", "mdb"],
+            "example": "excel"
+          },
+          "sheets": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Available sheets (Excel only)",
+            "example": ["Sheet1", "Sheet2"]
+          },
+          "columns": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "example": ["Name", "Age", "City"]
+          },
+          "row_count": {
+            "type": "integer",
+            "format": "int64",
+            "example": 1000
+          }
+        }
+      },
+      "DataFilesResponse": {
+        "allOf": [
+          { "$ref": "#/components/schemas/SuccessResponse" },
+          {
+            "type": "object",
+            "properties": {
+              "files": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/DataFileInfo"
+                }
+              },
+              "count": {
+                "type": "integer",
+                "example": 5
+              }
+            }
+          }
+        ]
       }
     },
     "securitySchemes": {
@@ -1337,6 +1635,10 @@
     {
       "name": "Watcher",
       "description": "File watching and change tracking"
+    },
+    {
+      "name": "Data",
+      "description": "Data browsing and file analysis"
     }
   ]
 }

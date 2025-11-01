@@ -106,3 +106,38 @@ export interface CreateJobRequest {
   object_name: string
   priority: 'low' | 'medium' | 'high'
 }
+
+// Multi-folder browsing types
+export interface FolderRequest {
+  path: string
+  include_files: boolean
+  include_dirs: boolean
+  recursive: boolean
+  max_depth?: number
+}
+
+export interface DirectoryInfo {
+  name: string
+  path: string
+  last_modified: string
+  file_count?: number
+  size?: number
+}
+
+export interface FolderResult {
+  path: string
+  directories?: DirectoryInfo[]
+  files?: FileInfo[]
+  total_count: number
+  file_count: number
+  dir_count: number
+  total_size_bytes: number
+  last_modified: string
+  subfolders?: Record<string, FolderResult>
+}
+
+export interface MultiFolderResponse {
+  success: boolean
+  message: string
+  folders: Record<string, FolderResult>
+}

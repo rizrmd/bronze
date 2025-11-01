@@ -10,11 +10,12 @@ import (
 	"time"
 
 	"bronze-backend/config"
-	"bronze-backend/handlers"
-	"bronze-backend/minio"
-	"bronze-backend/processor"
+	"bronze-backend/data_browser"
+	"bronze-backend/files"
+	"bronze-backend/jobs"
+	"bronze-backend/monitoring"
 	"bronze-backend/routes"
-	"bronze-backend/watcher"
+	"bronze-backend/storage"
 
 	"github.com/joho/godotenv"
 )
@@ -43,119 +44,80 @@ func main() {
 	log.Printf("MinIO: %s (bucket: %s)", cfg.MinIO.Endpoint, cfg.MinIO.Bucket)
 	log.Printf("Workers: %d", cfg.Processing.MaxWorkers)
 
-	minioClient, err := minio.NewMinIOClient(&cfg.MinIO)
+	storageClient, err := storage.NewMinIOClient(&cfg.MinIO)
 	if err != nil {
 		log.Printf("Warning: Failed to create MinIO client: %v", err)
 		log.Println("MinIO features will be disabled until connection is restored")
-		// Continue without MinIO for now
-		minioClient = nil
+		storageClient = nil
 	} else {
 		log.Println("MinIO client created successfully")
 	}
 
-	fileProcessor := processor.NewFileProcessor(cfg)
-	log.Println("File processor created successfully")
-
-	jobQueue := processor.NewJobQueue(cfg.Processing.MaxWorkers, cfg.Processing.QueueSize)
-	log.Println("Job queue created successfully")
-
-	workerPool := processor.NewWorkerPool(cfg.Processing.MaxWorkers, jobQueue, fileProcessor)
-	workerPool.Start()
-	log.Printf("Worker pool started with %d workers", cfg.Processing.MaxWorkers)
-
-	// Create file watcher (only if MinIO is available)
-	var fileWatcher *watcher.FileWatcher
-	if minioClient != nil {
-		eventStorage := watcher.NewMemoryEventStorage()
-		watcherConfig := watcher.Config{
-			Endpoint:        cfg.MinIO.Endpoint,
-			AccessKeyID:     cfg.MinIO.AccessKey,
-			SecretAccessKey: cfg.MinIO.SecretKey,
-			UseSSL:          cfg.MinIO.UseSSL(),
-			Region:          cfg.MinIO.Region,
-			BucketName:      cfg.MinIO.Bucket,
-			PollInterval:    30 * time.Second,
-		}
-
-		fileWatcher, err = watcher.NewFileWatcher(watcherConfig, eventStorage)
-		if err != nil {
-			log.Printf("Failed to create file watcher: %v", err)
-			fileWatcher = nil
-		} else {
-			// Set up event handler for file changes
-			fileWatcher.SetEventHandler(func(event *watcher.FileEvent) {
-				log.Printf("File event detected: %s - %s", event.EventType, event.Key)
-
-				// If this is a new file, create a processing job
-				if event.EventType == watcher.EventCreated {
-					job := processor.NewJob(
-						"decompress",
-						"", // local file path will be set by processor
-						cfg.MinIO.Bucket,
-						event.Key,
-						processor.PriorityMedium,
-					)
-
-					if err := jobQueue.Enqueue(job); err != nil {
-						log.Printf("Failed to create job for file %s: %v", event.Key, err)
-					} else {
-						log.Printf("Created processing job for file: %s", event.Key)
-					}
-				}
-			})
-
-			// Start file watcher
-			if err := fileWatcher.Start(); err != nil {
-				log.Printf("Failed to start file watcher: %v", err)
-				fileWatcher = nil
-			} else {
-				log.Println("File watcher started successfully")
-			}
-		}
+	nessieClient, err := storage.NewNessieClient(&cfg.Nessie)
+	if err != nil {
+		log.Printf("Warning: Failed to create Nessie client: %v", err)
+		log.Println("Nessie export features will be disabled")
+		nessieClient = nil
 	} else {
-		log.Println("File watcher disabled (MinIO not available)")
-	}
+		log.Println("Nessie client created successfully")
 
-	fileHandler := handlers.NewFileHandler(minioClient, fileProcessor)
-	jobHandler := handlers.NewJobHandler(jobQueue, workerPool)
-	watcherHandler := handlers.NewWatcherHandler(fileWatcher)
+		fileProcessor := files.NewFileProcessor(cfg)
+		log.Println("File processor created successfully")
 
-	router := routes.NewRouter(fileHandler, jobHandler, watcherHandler)
-	server := &http.Server{
-		Addr:         cfg.GetServerAddr(),
-		Handler:      router.GetRouter(),
-		ReadTimeout:  30 * time.Second,
-		WriteTimeout: 30 * time.Second,
-		IdleTimeout:  120 * time.Second,
-	}
+		jobQueue := jobs.NewJobQueue(cfg.Processing.MaxWorkers, cfg.Processing.QueueSize)
+		log.Println("Job queue created successfully")
 
-	go func() {
-		log.Printf("Starting HTTP server on %s", cfg.GetServerAddr())
-		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			log.Fatalf("Failed to start server: %v", err)
+		workerPool := jobs.NewWorkerPool(cfg.Processing.MaxWorkers, jobQueue, fileProcessor)
+		workerPool.Start()
+		log.Printf("Worker pool started with %d workers", cfg.Processing.MaxWorkers)
+
+		// Create file watcher (disabled for now to avoid startup issues)
+		var fileWatcher *monitoring.FileWatcher
+		log.Println("File watcher disabled")
+
+		fileHandler := files.NewFileHandlerWithQueue(storageClient, fileProcessor, jobQueue)
+		jobHandler := jobs.NewJobHandler(jobQueue, workerPool)
+		watcherHandler := monitoring.NewWatcherHandler(fileWatcher)
+		dataBrowserHandler := data_browser.NewDataBrowserHandler(storageClient)
+		exportHandler := data_browser.NewExportHandler(storageClient, nessieClient, cfg, dataBrowserHandler)
+
+		router := routes.NewRouter(fileHandler, jobHandler, watcherHandler, dataBrowserHandler, exportHandler)
+		server := &http.Server{
+			Addr:         cfg.GetServerAddr(),
+			Handler:      router.GetRouter(),
+			ReadTimeout:  30 * time.Second,
+			WriteTimeout: 30 * time.Second,
+			IdleTimeout:  120 * time.Second,
 		}
-	}()
 
-	quit := make(chan os.Signal, 1)
-	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
-	<-quit
+		go func() {
+			log.Printf("Starting HTTP server on %s", cfg.GetServerAddr())
+			if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+				log.Fatalf("Failed to start server: %v", err)
+			}
+		}()
 
-	log.Println("Shutting down server...")
+		quit := make(chan os.Signal, 1)
+		signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+		<-quit
 
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
+		log.Println("Shutting down server...")
 
-	if err := server.Shutdown(ctx); err != nil {
-		log.Printf("Server forced to shutdown: %v", err)
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+
+		if err := server.Shutdown(ctx); err != nil {
+			log.Printf("Server forced to shutdown: %v", err)
+		}
+
+		workerPool.Stop()
+		log.Println("Worker pool stopped")
+
+		if fileWatcher != nil {
+			fileWatcher.Stop()
+			log.Println("File watcher stopped")
+		}
+
+		log.Println("Server exited")
 	}
-
-	workerPool.Stop()
-	log.Println("Worker pool stopped")
-
-	if fileWatcher != nil {
-		fileWatcher.Stop()
-		log.Println("File watcher stopped")
-	}
-
-	log.Println("Server exited")
 }

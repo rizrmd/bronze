@@ -63,6 +63,21 @@ export const apiClient = {
     return data
   },
 
+  // Multi-folder browsing
+  async browseFolders(folders: any[], limit?: number): Promise<any> {
+    console.log('API browseFolders called with:', { folders, limit })
+    try {
+      const response = await api.post('/api/files/browse', { folders, limit })
+      console.log('API browseFolders response:', response)
+      console.log('API browseFolders response data:', response.data)
+      return response.data
+    } catch (error: any) {
+      console.error('API browseFolders error:', error)
+      console.error('Error response:', error.response?.data)
+      throw error
+    }
+  },
+
   async getFileInfo(filename: string): Promise<ApiResponse<FileInfo>> {
     const { data } = await api.get(`/files/${filename}`)
     return data
@@ -158,4 +173,5 @@ export const apiClient = {
   }
 }
 
+export { api }
 export default apiClient

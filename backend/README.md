@@ -78,7 +78,7 @@ The application uses environment variables for configuration. Create a `.env` fi
 ### Server Configuration
 ```bash
 SERVER_HOST=localhost
-SERVER_PORT=8080
+SERVER_PORT=8060
 ```
 
 ### MinIO Configuration
@@ -137,7 +137,7 @@ EXTRACT_TO_SUBFOLDER=true
 
 ### Upload a File
 ```bash
-curl -X POST -F "file=@example.zip" http://localhost:8080/files
+curl -X POST -F "file=@example.zip" http://localhost:8060/files
 ```
 
 ### Create a Processing Job
@@ -149,25 +149,25 @@ curl -X POST -H "Content-Type: application/json" \
     "bucket": "files",
     "object_name": "example.zip",
     "priority": "high"
-  }' \
-  http://localhost:8080/jobs
+   }' \
+   http://localhost:8060/jobs
 ```
 
 ### List Jobs
 ```bash
-curl http://localhost:8080/jobs
+curl http://localhost:8060/jobs
 ```
 
 ### Get Job Status
 ```bash
-curl http://localhost:8080/jobs/{job-id}
+curl http://localhost:8060/jobs/{job-id}
 ```
 
 ### Update Worker Count
 ```bash
 curl -X PUT -H "Content-Type: application/json" \
-  -d '{"count": 5}' \
-  http://localhost:8080/jobs/workers
+   -d '{"count": 5}' \
+   http://localhost:8060/jobs/workers
 ```
 
 ## Supported Archive Formats
@@ -207,12 +207,12 @@ The API provides comprehensive error responses:
 
 ### Health Check
 ```bash
-curl http://localhost:8080/health
+curl http://localhost:8060/health
 ```
 
 ### Statistics
 ```bash
-curl http://localhost:8080/jobs/stats
+curl http://localhost:8060/jobs/stats
 ```
 
 ## Development
@@ -248,7 +248,7 @@ FROM alpine:latest
 RUN apk --no-cache add ca-certificates
 WORKDIR /root/
 COPY --from=builder /app/bronze-backend .
-EXPOSE 8080
+EXPOSE 8060
 CMD ["./bronze-backend"]
 ```
 
@@ -259,7 +259,7 @@ services:
   bronze-backend:
     build: .
     ports:
-      - "8080:8080"
+      - "8060:8060"
     environment:
       - MINIO_ENDPOINT=minio:9000
       - MINIO_ACCESS_KEY=minioadmin

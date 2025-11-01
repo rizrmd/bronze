@@ -6,6 +6,7 @@ import {
   FolderOpen, 
   Briefcase, 
   Eye, 
+  Database,
   Settings,
   Menu,
   X
@@ -40,6 +41,12 @@ const navigation = [
     href: '/watcher',
     icon: Eye,
     current: computed(() => route.name === 'Watcher')
+  },
+  {
+    name: 'Nessie',
+    href: '/nessie',
+    icon: Database,
+    current: computed(() => route.name === 'Nessie')
   },
   {
     name: 'Settings',

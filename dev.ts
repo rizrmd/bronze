@@ -126,6 +126,41 @@ function runService(name: string, command: string, args: string[], cwd: string, 
   return childProcess;
 }
 
+async function killPorts() {
+  console.log('🔧 Checking for processes on ports 8060 and 8070...');
+  
+  try {
+    // Kill processes on port 8060 (backend)
+    await checkCommand('lsof', ['-ti', ':8060']).then(async (pidExists) => {
+      if (pidExists) {
+        console.log('🔧 Killing processes on port 8060...');
+        await checkCommand('kill', ['-9', '$(lsof -ti :8060)']);
+      }
+    });
+    
+    // Kill processes on port 8070 (frontend)
+    await checkCommand('lsof', ['-ti', ':8070']).then(async (pidExists) => {
+      if (pidExists) {
+        console.log('🔧 Killing processes on port 8070...');
+        await checkCommand('kill', ['-9', '$(lsof -ti :8070)']);
+      }
+    });
+    
+    // Alternative approach using pkill if lsof doesn't work
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    
+    // Try to kill any remaining Go processes on port 8060
+    await checkCommand('pkill', ['-f', 'go run main.go']);
+    
+    // Try to kill any remaining Vite processes on port 8070
+    await checkCommand('pkill', ['-f', 'vite']);
+    
+    console.log('✅ Port cleanup completed');
+  } catch (error) {
+    console.log('⚠️  Port cleanup encountered an error, but continuing...');
+  }
+}
+
 async function main() {
   console.log('🛠️  Bronze Development Server\n');
   
@@ -137,20 +172,37 @@ async function main() {
   }
   
   console.log('\n✅ All dependencies satisfied!');
+  
+  // Kill existing processes on ports
+  await killPorts();
+  
   console.log('🌟 Starting development servers...\n');
   
-  // Start backend
-  const backend = runService(
-    'Backend',
-    'go',
-    ['run', 'main.go'],
-    BACKEND_DIR,
-    '32' // Green
-  );
-  
+  // Start backend with auto-restart on crash
+  let backend: ReturnType<typeof spawn> | null = null;
+
+  function startBackend() {
+    backend = runService(
+      'Backend',
+      'go',
+      ['run', 'main.go'],
+      BACKEND_DIR,
+      '32' // Green
+    );
+
+    backend.on('close', (code) => {
+      if (code !== 0 && code !== null) {
+        console.log('\n🔄 Backend crashed, restarting in 1 second...');
+        setTimeout(startBackend, 1000);
+      }
+    });
+  }
+
+  startBackend();
+
   // Wait a moment for backend to start
   await new Promise(resolve => setTimeout(resolve, 2000));
-  
+
   // Start frontend
   const frontend = runService(
     'Frontend',
@@ -159,19 +211,19 @@ async function main() {
     FRONTEND_DIR,
     '34' // Blue
   );
-  
+
   // Handle shutdown
   const originalProcess = process;
   originalProcess.on('SIGINT', () => {
     console.log('\n\n🛑 Shutting down servers...');
-    backend.kill('SIGINT');
+    if (backend) backend.kill('SIGINT');
     frontend.kill('SIGINT');
     originalProcess.exit(0);
   });
   
   console.log('\n🎉 Development servers are running!');
-  console.log('📊 Backend: http://localhost:8080');
-  console.log('🎨 Frontend: http://localhost:5173');
+  console.log('📊 Backend: http://localhost:8060');
+  console.log('🎨 Frontend: http://localhost:8070');
   console.log('\nPress Ctrl+C to stop all servers');
 }
 

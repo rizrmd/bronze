@@ -11,6 +11,7 @@ type Config struct {
 	Server     ServerConfig     `json:"server"`
 	MinIO      MinIOConfig      `json:"minio"`
 	Processing ProcessingConfig `json:"processing"`
+	Nessie     NessieConfig     `json:"nessie"`
 }
 
 type ServerConfig struct {
@@ -43,11 +44,19 @@ type DecompressionConfig struct {
 	ExtractToSubfolder bool   `json:"extract_to_subfolder"`
 }
 
+type NessieConfig struct {
+	Endpoint  string `json:"endpoint"`
+	Namespace string `json:"namespace"`
+	AuthToken string `json:"auth_token"`
+	DefaultDB string `json:"default_database"`
+	BatchSize int    `json:"batch_size"`
+}
+
 func Load() (*Config, error) {
 	config := &Config{
 		Server: ServerConfig{
 			Host: getEnv("SERVER_HOST", "localhost"),
-			Port: getEnvInt("SERVER_PORT", 8080),
+			Port: getEnvInt("SERVER_PORT", 8060),
 		},
 		MinIO: MinIOConfig{
 			Endpoint:  getEnv("MINIO_ENDPOINT", "localhost:9000"),
@@ -63,12 +72,19 @@ func Load() (*Config, error) {
 			TempDir:       getEnv("TEMP_DIR", "/tmp/bronze"),
 			Decompression: DecompressionConfig{
 				Enabled:            getEnvBool("DECOMPRESSION_ENABLED", true),
-				MaxExtractSize:     getEnv("MAX_EXTRACT_SIZE", "1GB"),
-				MaxFilesPerArchive: getEnvInt("MAX_FILES_PER_ARCHIVE", 1000),
-				NestedArchiveDepth: getEnvInt("NESTED_ARCHIVE_DEPTH", 3),
+				MaxExtractSize:     getEnv("MAX_EXTRACT_SIZE", ""),
+				MaxFilesPerArchive: getEnvInt("MAX_FILES_PER_ARCHIVE", 0),
+				NestedArchiveDepth: getEnvInt("NESTED_ARCHIVE_DEPTH", 0),
 				PasswordProtected:  getEnvBool("PASSWORD_PROTECTED", true),
 				ExtractToSubfolder: getEnvBool("EXTRACT_TO_SUBFOLDER", true),
 			},
+		},
+		Nessie: NessieConfig{
+			Endpoint:  getEnv("NESSIE_ENDPOINT", "http://localhost:19120/api/v1"),
+			Namespace: getEnv("NESSIE_NAMESPACE", "warehouse"),
+			AuthToken: getEnv("NESSIE_AUTH_TOKEN", ""),
+			DefaultDB: getEnv("NESSIE_DEFAULT_DB", "bronze_warehouse"),
+			BatchSize: getEnvInt("NESSIE_BATCH_SIZE", 1000),
 		},
 	}
 

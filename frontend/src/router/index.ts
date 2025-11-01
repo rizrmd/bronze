@@ -27,6 +27,12 @@ const routes: RouteRecordRaw[] = [
     meta: { title: 'Watcher Events' }
   },
   {
+    path: '/nessie',
+    name: 'Nessie',
+    component: () => import('@/views/NessieView.vue'),
+    meta: { title: 'Nessie' }
+  },
+  {
     path: '/settings',
     name: 'Settings',
     component: () => import('@/views/Settings.vue'),
