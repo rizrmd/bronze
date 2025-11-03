@@ -94,7 +94,18 @@ export function sortFiles<T extends { key?: string; name?: string; last_modified
       case 'name':
         const nameA = a.key || a.name || ''
         const nameB = b.key || b.name || ''
-        comparison = nameA.localeCompare(nameB)
+        
+        // Prioritize capitalized names first
+        const firstCharA = nameA.charAt(0)
+        const firstCharB = nameB.charAt(0)
+        const isCapitalA = firstCharA >= 'A' && firstCharA <= 'Z'
+        const isCapitalB = firstCharB >= 'A' && firstCharB <= 'Z'
+        
+        if (isCapitalA !== isCapitalB) {
+          comparison = isCapitalA ? -1 : 1
+        } else {
+          comparison = nameA.localeCompare(nameB)
+        }
         break
         
       case 'date':
