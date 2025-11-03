@@ -42,12 +42,9 @@
           <FileBrowserTable
             :folders="filteredFolders"
             :files="filteredFiles"
-            :selected-files="selectedFiles"
             @navigate="navigateToFolder"
-            @open="navigateToFolder"
-            @select="toggleFileSelection"
-            @download="downloadFile"
-            @delete="deleteFile"
+            @open-folder="navigateToFolder"
+            @open-file="openFile"
           />
         </div>
         
@@ -67,8 +64,7 @@
             v-for="file in filteredFiles"
             :key="file.key"
             :file="file"
-            @download="downloadFile"
-            @delete="deleteFile"
+            @open="openFile"
           />
         </div>
       </div>
@@ -78,6 +74,7 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
+import { useRouter } from 'vue-router'
 import { Button } from '@/components/ui/button'
 import { RefreshCw, Folder } from 'lucide-vue-next'
 import BreadcrumbNavigation from './BreadcrumbNavigation.vue'
@@ -86,6 +83,7 @@ import FileBrowserTable from './FileBrowserTable.vue'
 import FolderCard from './FolderCard.vue'
 import FileCard from './FileCard.vue'
 import { useFileBrowser } from '@/composables/useFileBrowser'
+import type { FileInfo } from '@/types'
 
 interface Props {
   initialPath?: string
@@ -102,11 +100,12 @@ const props = withDefaults(defineProps<Props>(), {
 
 const emit = defineEmits<Emits>()
 
+const router = useRouter()
+
 const {
   currentPath,
   searchQuery,
   viewMode,
-  selectedFiles,
   loading,
   error,
   breadcrumbPaths,
@@ -114,7 +113,6 @@ const {
   filteredFolders,
   navigateToPath,
   navigateToFolder,
-  toggleFileSelection,
   refresh,
   setViewMode,
   setSearchQuery
@@ -127,15 +125,13 @@ const hasFiles = computed(() => {
   return (filteredFiles.value?.length || 0) > 0 || (filteredFolders.value?.length || 0) > 0
 })
 
-// File operations
-const downloadFile = (file: any) => {
-  // TODO: Implement download
-  console.log('Download file:', file.key)
-}
-
-const deleteFile = (file: any) => {
-  // TODO: Implement delete
-  console.log('Delete file:', file.key)
+// Open file in data browser with full path
+const openFile = (file: FileInfo) => {
+  // Always navigate to data browser with the full file path
+  router.push({
+    name: 'DataBrowser',
+    query: { file: file.key }
+  })
 }
 
 

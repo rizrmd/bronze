@@ -11,9 +11,6 @@
         <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
           Modified
         </th>
-        <th class="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-          Actions
-        </th>
       </tr>
     </thead>
     
@@ -24,7 +21,7 @@
         :key="folder.path"
         class="hover:bg-gray-50 cursor-pointer"
         @click="$emit('navigate', folder)"
-        @dblclick="$emit('open', folder)"
+        @dblclick="$emit('open-folder', folder)"
       >
         <td class="px-4 py-2">
           <div class="flex items-center">
@@ -43,29 +40,7 @@
         <td class="px-4 py-2 text-sm text-gray-500">
           Folder
         </td>
-        
-        <td class="px-4 py-2 text-right">
-          <div class="flex items-center justify-end space-x-2">
-            <Button
-              @click.stop="$emit('download', folder)"
-              variant="ghost"
-              size="sm"
-              title="Download"
-            >
-              <Download class="h-4 w-4" />
-            </Button>
-            
-            <Button
-              @click.stop="$emit('delete', folder)"
-              variant="ghost"
-              size="sm"
-              title="Delete"
-              class="text-red-600 hover:text-red-700"
-            >
-              <Trash2 class="h-4 w-4" />
-            </Button>
-          </div>
-        </td>
+
       </tr>
       
       <!-- Files -->
@@ -73,9 +48,8 @@
         v-for="file in sortedFiles"
         :key="file.key"
         class="hover:bg-gray-50 cursor-pointer"
-        :class="{ 'bg-blue-50': selectedFiles.has(file.key) }"
-        @click="$emit('select', file.key)"
-        @dblclick="$emit('download', file)"
+        :class="{}"
+        @click="$emit('open-file', file)"
       >
         <td class="px-4 py-2">
           <div class="flex items-center gap-3">
@@ -91,29 +65,7 @@
         <td class="px-4 py-2 text-sm text-gray-500">
           {{ formatDate(file.last_modified) }}
         </td>
-        
-        <td class="px-4 py-2 text-right">
-          <div class="flex items-center justify-end space-x-2">
-            <Button
-              @click.stop="$emit('download', file)"
-              variant="ghost"
-              size="sm"
-              title="Download"
-            >
-              <Download class="h-4 w-4" />
-            </Button>
-            
-            <Button
-              @click.stop="$emit('delete', file)"
-              variant="ghost"
-              size="sm"
-              title="Delete"
-              class="text-red-600 hover:text-red-700"
-            >
-              <Trash2 class="h-4 w-4" />
-            </Button>
-          </div>
-        </td>
+
       </tr>
     </tbody>
   </table>
@@ -121,9 +73,7 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
-import { Button } from '@/components/ui/button'
-import { Download, Trash2, Folder } from 'lucide-vue-next'
-import * as Icons from 'lucide-vue-next'
+import { Folder } from 'lucide-vue-next'
 import { 
   File,
   FileText, 
@@ -139,17 +89,14 @@ import type { FileInfo, DirectoryInfo } from '@/types'
 interface Props {
   folders: DirectoryInfo[]
   files: FileInfo[]
-  selectedFiles: Set<string>
   sortBy?: 'name' | 'size' | 'date'
   sortDirection?: 'asc' | 'desc'
 }
 
 interface Emits {
   (e: 'navigate', folder: DirectoryInfo): void
-  (e: 'open', folder: DirectoryInfo): void
-  (e: 'select', fileKey: string): void
-  (e: 'download', fileOrFolder: FileInfo | DirectoryInfo): void
-  (e: 'delete', fileOrFolder: FileInfo | DirectoryInfo): void
+  (e: 'open-folder', folder: DirectoryInfo): void
+  (e: 'open-file', file: FileInfo): void
 }
 
 const props = withDefaults(defineProps<Props>(), {

@@ -2,6 +2,8 @@ import { ref, computed, onUnmounted, nextTick, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import type { FileInfo, DirectoryInfo, FolderRequest } from '@/types'
 import { browseFolders } from '@/services/api/files'
+import { requestStore } from '@/stores/requestStore'
+import { isAbortError } from '@/utils/abortUtils'
 
 export interface FileBrowserState {
   files: FileInfo[]
@@ -10,7 +12,7 @@ export interface FileBrowserState {
   parentPath: string
   loading: boolean
   error: string
-  selectedFiles: Set<string>
+
   searchQuery: string
   viewMode: 'list' | 'grid'
 }
@@ -29,10 +31,20 @@ export function useFileBrowser(options: FileBrowserOptions = {}) {
   const folders = ref<DirectoryInfo[]>([])
   const loading = ref(false)
   const error = ref('')
-  const selectedFiles = ref<Set<string>>(new Set())
+
   const searchQuery = ref('')
   const viewMode = ref<'list' | 'grid'>(options.initialViewMode || 'list')
   const navigationHistory = ref<string[]>([])
+  
+  // Cancel all active browse requests
+  const cancelAllBrowseRequests = () => {
+    requestStore.cancelAllRequests()
+  }
+
+  // Cancel specific browse request
+  const cancelBrowseRequest = (path: string) => {
+    requestStore.cancelRequest(path)
+  }
   
   // Single source of truth: derive path from URL
   const currentPath = computed(() => route.params.path as string || '')
@@ -79,18 +91,7 @@ export function useFileBrowser(options: FileBrowserOptions = {}) {
     return (filteredFiles.value?.length || 0) > 0 || (filteredFolders.value?.length || 0) > 0
   })
 
-  const hasSelection = computed(() => selectedFiles.value.size > 0)
 
-  const clearSelection = () => {
-    selectedFiles.value.clear()
-  }
-
-  const selectAll = () => {
-    clearSelection()
-    filteredFiles.value.forEach(file => {
-      selectedFiles.value.add(file.key)
-    })
-  }
 
   // Navigation methods - just router operations
   const navigateToPath = (path: string) => {
@@ -114,6 +115,16 @@ export function useFileBrowser(options: FileBrowserOptions = {}) {
   const fetchCurrentDirectory = async (path: string = '') => {
     loading.value = true
     error.value = ''
+    
+    // Create a unique key for this request (use empty string for root)
+    const requestKey = path || 'root'
+    
+    // Cancel any existing request for this path
+    cancelBrowseRequest(requestKey)
+    
+    // Create new abort controller for this request
+    const abortController = new AbortController()
+    requestStore.addRequest(requestKey, abortController)
     
     const folderRequest: FolderRequest = {
       path,
@@ -187,23 +198,51 @@ export function useFileBrowser(options: FileBrowserOptions = {}) {
           }
         },
         (err: any) => {
-          error.value = err.message || 'Unknown error'
-          loading.value = false
-        }
+          // Don't show error for aborted requests - they're intentional cancellations
+          if (!isAbortError(err, abortController?.signal.aborted)) {
+            error.value = err.message || 'Unknown error'
+            loading.value = false
+          }
+        },
+        abortController
       )
     } catch (err: any) {
-      error.value = err.message || 'Failed to fetch directory'
-      loading.value = false
+      // Don't show error for aborted requests - they're intentional cancellations
+      if (!isAbortError(err, abortController?.signal.aborted)) {
+        error.value = err.message || 'Failed to fetch directory'
+        loading.value = false
+      }
+    } finally {
+      // Clean up controller when done
+      requestStore.removeRequest(requestKey)
     }
   }
 
   // Watch route changes to fetch data
-  const stopWatch = watch(currentPath, (newPath) => {
+  const stopWatch = watch(currentPath, (newPath, oldPath) => {
+    // Cancel the previous path's request before fetching new path, unless it's back navigation
+    if (oldPath && oldPath !== newPath) {
+      // Check if this is back navigation to parent
+      const isBackToParent = oldPath && newPath && 
+                           oldPath.startsWith(newPath) &&
+                           (newPath === '' || oldPath.includes(newPath + '/'))
+      
+      const oldRequestKey = oldPath || 'root'
+      
+      if (isBackToParent) {
+        console.log(`Path changed from ${oldPath} to ${newPath} (back to parent), NOT canceling previous request`)
+      } else {
+        console.log(`Path changed from ${oldPath} to ${newPath} (forward navigation), canceling previous request: ${oldRequestKey}`)
+        cancelBrowseRequest(oldRequestKey)
+      }
+    }
     fetchCurrentDirectory(newPath)
   }, { immediate: true })
 
   onUnmounted(() => {
     stopWatch()
+    // Cancel all pending requests when component is unmounted
+    cancelAllBrowseRequests()
   })
 
   return {
@@ -214,7 +253,7 @@ export function useFileBrowser(options: FileBrowserOptions = {}) {
     parentPath,
     loading,
     error,
-    selectedFiles,
+
     searchQuery,
     viewMode,
     navigationHistory,
@@ -224,25 +263,16 @@ export function useFileBrowser(options: FileBrowserOptions = {}) {
     filteredFiles,
     filteredFolders,
     hasFiles,
-    hasSelection,
 
     // Methods
-    clearSelection,
-    selectAll,
     navigateToPath,
     navigateToFolder,
     fetchCurrentDirectory,
     
-    // Additional methods for compatibility
-    toggleFileSelection: (key: string) => {
-      if (selectedFiles.value.has(key)) {
-        selectedFiles.value.delete(key)
-      } else {
-        selectedFiles.value.add(key)
-      }
-    },
     refresh: () => fetchCurrentDirectory(currentPath.value),
     setViewMode: (mode: 'list' | 'grid') => { viewMode.value = mode },
-    setSearchQuery: (query: string) => { searchQuery.value = query }
+    setSearchQuery: (query: string) => { searchQuery.value = query },
+    cancelAllBrowseRequests,
+    cancelBrowseRequest
   }
 }

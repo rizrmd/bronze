@@ -1,8 +1,10 @@
 import { api } from './client'
 import type { BrowseRequest, BrowseResponse, DataFileListResponse, ExportRequest, ExportResponse } from '@/types'
 
-export async function browseData(request: BrowseRequest): Promise<BrowseResponse> {
-  const { data } = await api.post('/api/data/browse', request)
+export async function browseData(request: BrowseRequest, abortController?: AbortController): Promise<BrowseResponse> {
+  const { data } = await api.post('/api/data/browse', request, {
+    signal: abortController?.signal,
+  })
   return data
 }
 

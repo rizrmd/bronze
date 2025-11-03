@@ -7,11 +7,23 @@ import {
   exportMultipleFiles as exportMultipleFilesService
 } from '@/services'
 import type { BrowseRequest, ExportRequest } from '@/types'
+import { requestStore } from '@/stores/requestStore'
+import { isAbortError } from '@/utils/abortUtils'
 
 export function useDataBrowser() {
   const loading = ref(false)
   const error = ref<string | null>(null)
   const toast = inject('toast') as any
+
+  // Cancel all active browse requests
+  const cancelAllBrowseRequests = () => {
+    requestStore.cancelAllRequests()
+  }
+
+  // Cancel specific browse request
+  const cancelBrowseRequest = (requestKey: string) => {
+    requestStore.cancelRequest(requestKey)
+  }
 
   const setLoading = (state: boolean) => {
     loading.value = state
@@ -35,19 +47,35 @@ export function useDataBrowser() {
   const browseData = async (request: BrowseRequest) => {
     setLoading(true)
     clearError()
+    
+    // Create unique request key
+    const requestKey = JSON.stringify(request)
+    
+    // Cancel any existing request for same data
+    cancelBrowseRequest(requestKey)
+    
+    // Create new abort controller
+    const abortController = new AbortController()
+    requestStore.addRequest(requestKey, abortController)
+    
     try {
-      const response = await browseDataService(request)
+      const response = await browseDataService(request, abortController)
       if (response.success) {
         return response
       } else {
         setError(response.message || 'Failed to browse data')
         return null
       }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unknown error')
+    } catch (err: any) {
+      // Don't show error for aborted requests - they're intentional cancellations
+      if (!isAbortError(err, abortController?.signal.aborted)) {
+        setError(err.message || 'Unknown error')
+      }
       return null
     } finally {
       setLoading(false)
+      // Clean up controller when done
+      requestStore.removeRequest(requestKey)
     }
   }
 
@@ -142,6 +170,8 @@ export function useDataBrowser() {
     exportSingleFile,
     exportMultipleFiles,
     clearError,
-    setError
+    setError,
+    cancelAllBrowseRequests,
+    cancelBrowseRequest
   }
 }

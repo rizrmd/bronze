@@ -3,7 +3,7 @@
     <div class="flex items-center space-x-2 flex-1 mr-2">
       <Input
         :model-value="searchQuery"
-        placeholder="Search files and folders..."
+        placeholder="Filter files and folders..."
         class="flex-1"
         @input="handleSearchInput"
       />
