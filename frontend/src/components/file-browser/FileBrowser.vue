@@ -32,35 +32,23 @@
       </div>
       
       <div v-else-if="!hasFiles" class="flex flex-col items-center justify-center h-64 text-gray-400">
-        <div class="mb-2 text-6xl">📁</div>
+        <Folder class="w-16 h-16 text-blue-500 mb-2" />
         <div>This folder is empty</div>
       </div>
       
       <div v-else class="flex-1 overflow-auto">
-        <!-- List View -->
+        <!-- List View (Table) -->
         <div v-if="viewMode === 'list'" class="bg-white">
-          <!-- Folders -->
-          <div
-            v-for="folder in filteredFolders"
-            :key="folder.path"
-            class="cursor-pointer hover:bg-gray-50"
-            @click="navigateToFolder(folder)"
-            @dblclick="navigateToFolder(folder)"
-          >
-            <FolderListItem :folder="folder" @navigate="navigateToFolder" @open="navigateToFolder" />
-          </div>
-          
-          <!-- Files -->
-          <div
-            v-for="file in filteredFiles"
-            :key="file.key"
-            class="cursor-pointer hover:bg-gray-50"
-            :class="{ 'bg-blue-50': selectedFiles.has(file.key) }"
-            @click="toggleFileSelection(file.key, $event)"
-            @dblclick="downloadFile(file)"
-          >
-            <FileListItem :file="file" @download="downloadFile" @delete="deleteFile" />
-          </div>
+          <FileBrowserTable
+            :folders="filteredFolders"
+            :files="filteredFiles"
+            :selected-files="selectedFiles"
+            @navigate="navigateToFolder"
+            @open="navigateToFolder"
+            @select="toggleFileSelection"
+            @download="downloadFile"
+            @delete="deleteFile"
+          />
         </div>
         
         <!-- Grid View -->
@@ -85,35 +73,23 @@
         </div>
       </div>
     </div>
-    
-    <!-- Actions Bar -->
-    <FileBrowserActions
-      :has-selection="hasSelection"
-      @download="downloadSelected"
-      @delete="deleteSelected"
-      @select-all="selectAll"
-      @clear-selection="clearSelection"
-    />
   </div>
 </template>
 
 <script setup lang="ts">
 import { computed } from 'vue'
 import { Button } from '@/components/ui/button'
-import { RefreshCw } from 'lucide-vue-next'
+import { RefreshCw, Folder } from 'lucide-vue-next'
 import BreadcrumbNavigation from './BreadcrumbNavigation.vue'
 import FileBrowserToolbar from './FileBrowserToolbar.vue'
-import FileBrowserActions from './FileBrowserActions.vue'
+import FileBrowserTable from './FileBrowserTable.vue'
 import FolderCard from './FolderCard.vue'
-import FolderListItem from './FolderListItem.vue'
 import FileCard from './FileCard.vue'
-import FileListItem from './FileListItem.vue'
 import { useFileBrowser } from '@/composables/useFileBrowser'
 
 interface Props {
   initialPath?: string
   initialViewMode?: 'list' | 'grid'
-  useSSE?: boolean
 }
 
 interface Emits {
@@ -121,38 +97,30 @@ interface Emits {
 }
 
 const props = withDefaults(defineProps<Props>(), {
-  initialViewMode: 'list',
-  useSSE: false
+  initialViewMode: 'list'
 })
 
 const emit = defineEmits<Emits>()
 
 const {
-  files,
-  folders,
   currentPath,
-  parentPath,
-  loading,
-  error,
-  selectedFiles,
   searchQuery,
   viewMode,
+  selectedFiles,
+  loading,
+  error,
   breadcrumbPaths,
   filteredFiles,
   filteredFolders,
-  hasSelection,
   navigateToPath,
   navigateToFolder,
   toggleFileSelection,
-  clearSelection,
-  selectAll,
   refresh,
   setViewMode,
   setSearchQuery
 } = useFileBrowser({
   initialPath: props.initialPath,
-  initialViewMode: props.initialViewMode,
-  useSSE: props.useSSE
+  initialViewMode: props.initialViewMode
 })
 
 const hasFiles = computed(() => {
@@ -170,13 +138,5 @@ const deleteFile = (file: any) => {
   console.log('Delete file:', file.key)
 }
 
-const downloadSelected = () => {
-  // TODO: Implement bulk download
-  console.log('Download selected:', Array.from(selectedFiles.value))
-}
 
-const deleteSelected = () => {
-  // TODO: Implement bulk delete
-  console.log('Delete selected:', Array.from(selectedFiles.value))
-}
 </script>

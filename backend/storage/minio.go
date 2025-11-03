@@ -317,24 +317,18 @@ func (m *MinIOClient) FileExists(ctx context.Context, objectName string) (bool, 
 	return true, nil
 }
 
-func (m *MinIOClient) ListBuckets(ctx context.Context) ([]minio.BucketInfo, error) {
-	buckets, err := m.client.ListBuckets(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("failed to list buckets: %w", err)
-	}
-	return buckets, nil
-}
-
-func (m *MinIOClient) GetBucketInfo(ctx context.Context) (minio.BucketInfo, error) {
-	return minio.BucketInfo{}, nil
-}
-
+// Get direct MinIO client for advanced operations
 func (m *MinIOClient) GetClient() *minio.Client {
 	return m.client
 }
 
+// Get bucket name for advanced operations  
 func (m *MinIOClient) GetBucketName() string {
 	return m.bucketName
+}
+
+func (m *MinIOClient) GetBucketInfo(ctx context.Context) (minio.BucketInfo, error) {
+	return minio.BucketInfo{}, nil
 }
 
 func (m *MinIOClient) SetBucket(bucketName string) error {

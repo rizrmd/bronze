@@ -67,7 +67,9 @@ export function useFileUpload() {
         if (progressIndex === -1) continue
         
         // Update status to uploading
-        uploadProgress.value[progressIndex].status = 'uploading'
+        if (uploadProgress.value[progressIndex]) {
+          uploadProgress.value[progressIndex].status = 'uploading'
+        }
         
         try {
           // Create object name with target path
@@ -82,7 +84,9 @@ export function useFileUpload() {
               return
             }
             
-            uploadProgress.value[progressIndex].progress = progress
+            if (uploadProgress.value[progressIndex]) {
+              uploadProgress.value[progressIndex].progress = progress
+            }
             options.onProgress?.(file.name, progress)
           }, 100)
           
@@ -97,11 +101,13 @@ export function useFileUpload() {
           uploadProgress.value[progressIndex].status = 'success'
         }
           
-          options.onSuccess?.(file.name)
+        options.onSuccess?.(file.name)
           
         } catch (error: any) {
-          uploadProgress.value[progressIndex].status = 'error'
-          uploadProgress.value[progressIndex].error = error.message || 'Upload failed'
+          if (uploadProgress.value[progressIndex]) {
+            uploadProgress.value[progressIndex].status = 'error'
+            uploadProgress.value[progressIndex].error = error.message || 'Upload failed'
+          }
           
           options.onError?.(file.name, error.message || 'Upload failed')
         }
@@ -112,7 +118,7 @@ export function useFileUpload() {
     }
   }
 
-  const retryUpload = (fileName: string, targetPath: string = '', options: UploadOptions = {}) => {
+  const retryUpload = (fileName: string, _targetPath: string = '', _options: UploadOptions = {}) => {
     const progressIndex = uploadProgress.value.findIndex(p => p.fileName === fileName)
     
     if (progressIndex === -1) return
@@ -122,9 +128,11 @@ export function useFileUpload() {
     if (!file) return
     
     // Reset progress
-    uploadProgress.value[progressIndex].progress = 0
-    uploadProgress.value[progressIndex].status = 'pending'
-    uploadProgress.value[progressIndex].error = undefined
+    if (uploadProgress.value[progressIndex]) {
+      uploadProgress.value[progressIndex].progress = 0
+      uploadProgress.value[progressIndex].status = 'pending'
+      uploadProgress.value[progressIndex].error = undefined
+    }
     
     // Re-add to queue
     if (!uploadQueue.value.includes(file)) {

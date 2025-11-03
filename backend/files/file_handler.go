@@ -248,94 +248,8 @@ func (h *FileHandler) MultiFolderBrowse(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	// Check if SSE is requested
-	isSSE := r.URL.Query().Get("stream") == "sse"
-	if isSSE {
-		h.streamFolderBrowse(w, r)
-		return
-	}
-
-	// Check bucket status first
-	log.Printf("MultiFolderBrowse handler: checking bucket status")
-	bucketOk, bucketMsg := h.checkBucketStatus()
-	log.Printf("MultiFolderBrowse handler: bucketOk=%v, bucketMsg=%s", bucketOk, bucketMsg)
-	if !bucketOk {
-		h.writeError(w, bucketMsg, http.StatusServiceUnavailable, fmt.Errorf("bucket not accessible"))
-		return
-	}
-
-	var req MultiFolderRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		h.writeError(w, "Invalid JSON", http.StatusBadRequest, err)
-		return
-	}
-
-	// Set default limit
-	limit := 1000
-	if req.Limit > 0 {
-		limit = req.Limit
-	}
-
-	ctx, cancel := context.WithTimeout(r.Context(), 60*time.Second)
-	defer cancel()
-
-	// Process folders in parallel with controlled concurrency
-	results := make(map[string]FolderResult)
-	resultChan := make(chan struct {
-		path   string
-		result FolderResult
-		err    error
-	}, len(req.Folders))
-
-	// Limit concurrent goroutines to prevent resource exhaustion
-	maxConcurrency := 10
-	if len(req.Folders) < maxConcurrency {
-		maxConcurrency = len(req.Folders)
-	}
-	
-	semaphore := make(chan struct{}, maxConcurrency)
-
-	// Start goroutines for each folder
-	for i, folderReq := range req.Folders {
-		go func(idx int, folderReq FolderRequest) {
-			semaphore <- struct{}{} // Acquire
-			defer func() { <-semaphore }() // Release
-
-			result, err := h.processFolder(ctx, folderReq, limit)
-			resultChan <- struct {
-				path   string
-				result FolderResult
-				err    error
-			}{path: folderReq.Path, result: result, err: err}
-		}(i, folderReq)
-	}
-
-	// Collect results
-	for i := 0; i < len(req.Folders); i++ {
-		result := <-resultChan
-		if result.err != nil {
-			log.Printf("Error processing folder '%s': %v", result.path, result.err)
-			// Return error result for failed folder
-			results[result.path] = FolderResult{
-				Path:   result.path,
-				TotalCount: 0,
-				FileCount: 0,
-				DirCount: 0,
-				Size: 0,
-				LastModified: "",
-			}
-		} else {
-			results[result.path] = result.result
-		}
-	}
-
-	response := MultiFolderResponse{
-		Success: true,
-		Folders: results,
-		Message: fmt.Sprintf("Successfully processed %d folders", len(req.Folders)),
-	}
-
-	h.writeJSON(w, http.StatusOK, response)
+	// All requests to /api/files/browse return SSE streams
+	h.streamFolderBrowseRealtime(w, r)
 }
 
 // SSE streaming for folder browsing
@@ -1109,7 +1023,7 @@ func (h *FileHandler) ListBuckets(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
 	defer cancel()
 
-	buckets, err := h.minioClient.ListBuckets(ctx)
+	buckets, err := h.minioClient.GetClient().ListBuckets(ctx)
 	if err != nil {
 		h.writeError(w, "Failed to list buckets", http.StatusInternalServerError, err)
 		return

@@ -30,23 +30,11 @@ export async function listFiles(prefix?: string): Promise<FileListResponse> {
   return data
 }
 
-export async function browseFolders(folders: any[], limit?: number): Promise<any> {
-  console.log('browseFolders called with:', { folders, limit })
-  try {
-    const response = await api.post('/api/files/browse', { folders, limit })
-    console.log('browseFolders response:', response.data)
-    return response.data
-  } catch (error: any) {
-    console.error('browseFolders error:', error)
-    throw error
-  }
-}
-
-export async function browseFoldersSSE(folders: any[], onEvent: SSEEventCallback, onError?: SSEErrorCallback): Promise<void> {
-  console.log('browseFoldersSSE called with:', { folders })
+export async function browseFolders(folders: any[], onEvent: SSEEventCallback, onError?: SSEErrorCallback): Promise<void> {
+  console.log('browseFolders SSE called with:', { folders })
   
   try {
-    const response = await fetch('/api/files/browse?stream=sse', {
+    const response = await fetch('/api/files/browse', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -107,7 +95,7 @@ export async function browseFoldersSSE(folders: any[], onEvent: SSEEventCallback
       }
     }
   } catch (error: any) {
-    console.error('browseFoldersSSE error:', error)
+    console.error('browseFolders error:', error)
     if (onError) {
       onError(error)
     }

@@ -1,9 +1,8 @@
 <template>
-  <div class="h-full">
+  <div class="absolute inset-0">
     <FileBrowser
       :initial-path="initialPath"
       :initial-view-mode="initialViewMode"
-      :use-s-s-e="useSSE"
     />
     
     <!-- Upload Dialog -->
@@ -31,12 +30,10 @@ import { useFileUpload } from '@/composables/useFileUpload'
 interface Props {
   initialPath?: string
   initialViewMode?: 'list' | 'grid'
-  useSSE?: boolean
 }
 
 const props = withDefaults(defineProps<Props>(), {
-  initialViewMode: 'list',
-  useSSE: false
+  initialViewMode: 'list'
 })
 
 // File upload

@@ -1,7 +1,7 @@
 <template>
   <div class="flex items-center px-4 py-2 border-b hover:bg-gray-50">
     <div class="flex items-center space-x-3 flex-1 mr-2">
-      <div class="text-xl">{{ getFileIcon(fileName) }}</div>
+      <component :is="getFileIconComponent(fileName)" />
       <div class="flex-1">
         <div class="font-medium">{{ fileName }}</div>
         <div class="text-sm text-gray-500">{{ formatFileSize(fileSize) }} • {{ formatDate(lastModified) }}</div>
@@ -36,6 +36,7 @@ import { computed } from 'vue'
 import { Button } from '@/components/ui/button'
 import { Download, Trash2 } from 'lucide-vue-next'
 import { formatFileSize, formatDate, getFileIcon } from '@/composables/useFileUtils'
+import * as Icons from 'lucide-vue-next'
 import type { FileInfo } from '@/types'
 
 interface Props {
@@ -56,4 +57,9 @@ const fileName = computed(() => {
 
 const fileSize = computed(() => props.file.size || 0)
 const lastModified = computed(() => props.file.last_modified || '')
+
+const getFileIconComponent = (filename: string) => {
+  const iconName = getFileIcon(filename)
+  return Icons[iconName as keyof typeof Icons] || Icons.File
+}
 </script>

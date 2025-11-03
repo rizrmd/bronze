@@ -4,12 +4,16 @@
     @click="$emit('navigate', folder)"
     @dblclick="$emit('open', folder)"
   >
-    <div class="text-4xl mb-2">📁</div>
+    <Folder class="w-10 h-10 text-blue-500 mb-2" />
     <span class="text-xs text-center truncate w-full">{{ folder.name || 'Unknown' }}</span>
+    <span v-if="folder.total_count !== undefined" class="text-xs text-gray-500">
+      {{ folder.total_count }} items
+    </span>
   </div>
 </template>
 
 <script setup lang="ts">
+import { Folder } from 'lucide-vue-next'
 import type { DirectoryInfo } from '@/types'
 
 interface Props {
@@ -21,6 +25,6 @@ interface Emits {
   (e: 'open', folder: DirectoryInfo): void
 }
 
-const props = defineProps<Props>()
+defineProps<Props>()
 defineEmits<Emits>()
 </script>

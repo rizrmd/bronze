@@ -15,20 +15,35 @@ export function formatDate(dateString: string): string {
   return date.toLocaleString()
 }
 
-export function getFileIcon(fileName: string): string {
-  if (!fileName || typeof fileName !== 'string') return '📄'
+import { 
+  File, 
+  FileText, 
+  FileSpreadsheet, 
+  FileImage, 
+  FileVideo, 
+  FileAudio, 
+  FileArchive,
+  Folder
+} from 'lucide-vue-next'
+
+export function getFileIcon(fileName: string): any {
+  if (!fileName || typeof fileName !== 'string') return File
   const ext = fileName.split('.').pop()?.toLowerCase()
-  const icons: Record<string, string> = {
-    'pdf': '📄',
-    'doc': '📝', 'docx': '📝',
-    'xls': '📊', 'xlsx': '📊', 'csv': '📊',
-    'jpg': '🖼️', 'jpeg': '🖼️', 'png': '🖼️', 'gif': '🖼️',
-    'mp4': '🎬', 'avi': '🎬', 'mov': '🎬',
-    'mp3': '🎵', 'wav': '🎵',
-    'zip': '📦', 'rar': '📦', 'tar': '📦', 'gz': '📦',
-    'txt': '📄', 'log': '📄'
+  const icons: Record<string, any> = {
+    'pdf': FileText,
+    'doc': FileText, 'docx': FileText,
+    'xls': FileSpreadsheet, 'xlsx': FileSpreadsheet, 'csv': FileSpreadsheet,
+    'jpg': FileImage, 'jpeg': FileImage, 'png': FileImage, 'gif': FileImage,
+    'mp4': FileVideo, 'avi': FileVideo, 'mov': FileVideo,
+    'mp3': FileAudio, 'wav': FileAudio,
+    'zip': FileArchive, 'rar': FileArchive, 'tar': FileArchive, 'gz': FileArchive,
+    'txt': File, 'log': File
   }
-  return icons[ext || ''] || '📄'
+  return icons[ext || ''] || File
+}
+
+export function getFolderIcon(): any {
+  return Folder
 }
 
 export function getRelativePath(basePath: string, fullPath: string): string {
@@ -58,7 +73,8 @@ export function validateFileName(fileName: string): { isValid: boolean; error?: 
   
   // Check for reserved names (Windows)
   const reservedNames = ['CON', 'PRN', 'AUX', 'NUL', 'COM1', 'COM2', 'COM3', 'COM4', 'COM5', 'COM6', 'COM7', 'COM8', 'COM9', 'LPT1', 'LPT2', 'LPT3', 'LPT4', 'LPT5', 'LPT6', 'LPT7', 'LPT8', 'LPT9']
-  const nameWithoutExt = fileName.split('.')[0].toUpperCase()
+  const nameParts = fileName.split('.')
+  const nameWithoutExt = nameParts[0]?.toUpperCase() || fileName.toUpperCase()
   if (reservedNames.includes(nameWithoutExt)) {
     return { isValid: false, error: 'File name is reserved' }
   }

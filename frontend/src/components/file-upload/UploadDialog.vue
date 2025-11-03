@@ -46,7 +46,7 @@
               }"
             >
               <div class="flex items-center space-x-3 flex-1">
-                <div class="text-xl">📄</div>
+                <File class="w-5 h-5 text-gray-500" />
                 <div class="flex-1">
                   <div class="font-medium">{{ progress.fileName }}</div>
                   <div class="text-sm text-gray-500">
@@ -144,7 +144,7 @@
 import { computed, ref } from 'vue'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { Upload } from 'lucide-vue-next'
+import { Upload, File } from 'lucide-vue-next'
 import type { UploadProgress, UploadProgressStats } from '@/composables/useFileUpload'
 
 interface Props {

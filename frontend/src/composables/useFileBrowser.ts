@@ -1,4 +1,5 @@
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onUnmounted, nextTick, watch } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
 import type { FileInfo, DirectoryInfo, FolderRequest } from '@/types'
 import { browseFolders } from '@/services/api/files'
 
@@ -12,43 +13,49 @@ export interface FileBrowserState {
   selectedFiles: Set<string>
   searchQuery: string
   viewMode: 'list' | 'grid'
-  navigationHistory: string[]
-  historyIndex: number
 }
 
 export interface FileBrowserOptions {
   initialPath?: string
   initialViewMode?: 'list' | 'grid'
-  useSSE?: boolean
 }
 
 export function useFileBrowser(options: FileBrowserOptions = {}) {
-  // State
+  const router = useRouter()
+  const route = useRoute()
+  
+  // State - no currentPath, derived from URL
   const files = ref<FileInfo[]>([])
   const folders = ref<DirectoryInfo[]>([])
-  const currentPath = ref(options.initialPath || '')
-  const parentPath = ref('')
   const loading = ref(false)
   const error = ref('')
   const selectedFiles = ref<Set<string>>(new Set())
   const searchQuery = ref('')
   const viewMode = ref<'list' | 'grid'>(options.initialViewMode || 'list')
   const navigationHistory = ref<string[]>([])
-  const historyIndex = ref(-1)
+  
+  // Single source of truth: derive path from URL
+  const currentPath = computed(() => route.params.path as string || '')
+  const parentPath = computed(() => {
+    const path = currentPath.value
+    if (!path) return ''
+    const parts = path.split('/')
+    parts.pop()
+    return parts.join('/')
+  })
 
   // Computed properties
   const breadcrumbPaths = computed(() => {
-    if (!currentPath.value) return [{ name: 'Root', path: '' }]
+    const path = currentPath.value
+    if (!path) return [{ name: 'Root', path: '' }]
     
-    const parts = currentPath.value.split('/').filter(Boolean)
-    const paths = []
-    let current = ''
-    
-    paths.push({ name: 'Root', path: '' })
+    const parts = path.split('/').filter(Boolean)
+    const paths = [{ name: 'Root', path: '' }]
+    let currentPathSegment = ''
     
     for (const part of parts) {
-      current += (current ? '/' : '') + part
-      paths.push({ name: part, path: current })
+      currentPathSegment += (currentPathSegment ? '/' : '') + part
+      paths.push({ name: part, path: currentPathSegment })
     }
     
     return paths
@@ -85,7 +92,25 @@ export function useFileBrowser(options: FileBrowserOptions = {}) {
     })
   }
 
-  // Methods
+  // Navigation methods - just router operations
+  const navigateToPath = (path: string) => {
+    if (path) {
+      router.push({ 
+        name: 'FilesWithFolder', 
+        params: { path } 
+      }).catch(() => {}) // Ignore duplicate navigation
+    } else {
+      router.push({ 
+        name: 'Files' 
+      }).catch(() => {})
+    }
+  }
+
+  const navigateToFolder = (folder: DirectoryInfo) => {
+    navigateToPath(folder.path)
+  }
+
+  // Data fetching
   const fetchCurrentDirectory = async (path: string = '') => {
     loading.value = true
     error.value = ''
@@ -100,92 +125,85 @@ export function useFileBrowser(options: FileBrowserOptions = {}) {
     }
 
     try {
-      const response = await browseFolders([folderRequest])
-      
-      if (response.success && response.folders[path]) {
-        const folderData = response.folders[path]
-        
-        // Map backend response to frontend format
-        files.value = (folderData.files || []).map((file: any) => ({
-          key: file.path || file.name,
-          size: file.size,
-          last_modified: file.last_modified,
-          etag: file.etag,
-          content_type: file.content_type
-        }))
-        
-        // Process directories
-        const directories = folderData.directories || []
-        folders.value = directories.map((dir: any) => ({
-          ...dir,
-          name: dir.name || dir.path?.split('/').filter(Boolean).pop() || 'Unknown',
-          file_count: dir.file_count || 0,
-          dir_count: dir.dir_count || 0,
-          total_count: (dir.file_count || 0) + (dir.dir_count || 0)
-        }))
-        
-        currentPath.value = path
-        
-        // Calculate parent path
-        if (path) {
-          const parts = path.split('/')
-          parts.pop()
-          parentPath.value = parts.join('/')
-        } else {
-          parentPath.value = ''
+      // Use SSE streaming for all requests
+      await browseFolders(
+        [folderRequest],
+        (event, data) => {
+          switch (event) {
+            case 'folder_start':
+              // Clear current data when starting new folder browse
+              files.value = []
+              folders.value = []
+              loading.value = true
+              
+              // Trigger immediate UI update
+              nextTick()
+              break
+              
+            case 'item':
+              // Stop loading after first item arrives for instant UI
+              if (loading.value) {
+                loading.value = false
+              }
+              
+              if (data.type === 'file') {
+                // Add file to files array
+                files.value.push({
+                  key: data.path,
+                  size: data.size,
+                  last_modified: data.last_modified,
+                  etag: data.etag,
+                  content_type: data.contentType
+                })
+                
+                // Trigger immediate UI update
+                nextTick()
+              } else if (data.type === 'directory') {
+                // Add directory to folders array
+                folders.value.push({
+                  ...data,
+                  name: data.name,
+                  path: data.path,
+                  file_count: 0,
+                  dir_count: 0,
+                  total_count: data.size || 0, // For folders, size is item count
+                  size: data.size || 0 // Store original size (item count for folders)
+                })
+                
+                // Trigger immediate UI update
+                nextTick()
+              }
+              break
+              
+            case 'folder_complete':
+            case 'complete':
+              loading.value = false
+              break
+              
+            case 'error':
+              error.value = data.error || 'Unknown error occurred'
+              loading.value = false
+              break
+          }
+        },
+        (err: any) => {
+          error.value = err.message || 'Unknown error'
+          loading.value = false
         }
-        
-        // Update navigation history
-        if (historyIndex.value === -1 || navigationHistory.value[historyIndex.value] !== path) {
-          navigationHistory.value = navigationHistory.value.slice(0, historyIndex.value + 1)
-          navigationHistory.value.push(path)
-          historyIndex.value = navigationHistory.value.length - 1
-        }
-      } else {
-        throw new Error(response.message || 'Failed to load directory')
-      }
+      )
     } catch (err: any) {
-      const errorMsg = err.message || 'Failed to load directory'
-      error.value = errorMsg
-      files.value = []
-      folders.value = []
-    } finally {
+      error.value = err.message || 'Failed to fetch directory'
       loading.value = false
     }
   }
 
-  const navigateToPath = (path: string) => {
-    fetchCurrentDirectory(path)
-  }
+  // Watch route changes to fetch data
+  const stopWatch = watch(currentPath, (newPath) => {
+    fetchCurrentDirectory(newPath)
+  }, { immediate: true })
 
-  const navigateToFolder = (folder: DirectoryInfo) => {
-    navigateToPath(folder.path)
-  }
-
-  const refresh = () => {
-    selectedFiles.value.clear()
-    fetchCurrentDirectory(currentPath.value)
-  }
-
-  const toggleFileSelection = (fileKey: string) => {
-    if (selectedFiles.value.has(fileKey)) {
-      selectedFiles.value.delete(fileKey)
-    } else {
-      selectedFiles.value.add(fileKey)
-    }
-  }
-
-  const setViewMode = (mode: 'list' | 'grid') => {
-    viewMode.value = mode
-  }
-
-  const setSearchQuery = (query: string) => {
-    searchQuery.value = query
-  }
-
-  // Initialize
-  onMounted(() => {
-    fetchCurrentDirectory(currentPath.value)
+  onUnmounted(() => {
+    stopWatch()
   })
 
   return {
@@ -200,24 +218,31 @@ export function useFileBrowser(options: FileBrowserOptions = {}) {
     searchQuery,
     viewMode,
     navigationHistory,
-    historyIndex,
-    
+
     // Computed
     breadcrumbPaths,
     filteredFiles,
     filteredFolders,
     hasFiles,
     hasSelection,
-    
+
     // Methods
-    fetchCurrentDirectory,
+    clearSelection,
+    selectAll,
     navigateToPath,
     navigateToFolder,
-    refresh,
-    toggleFileSelection,
-    setViewMode,
-    setSearchQuery,
-    clearSelection,
-    selectAll
+    fetchCurrentDirectory,
+    
+    // Additional methods for compatibility
+    toggleFileSelection: (key: string) => {
+      if (selectedFiles.value.has(key)) {
+        selectedFiles.value.delete(key)
+      } else {
+        selectedFiles.value.add(key)
+      }
+    },
+    refresh: () => fetchCurrentDirectory(currentPath.value),
+    setViewMode: (mode: 'list' | 'grid') => { viewMode.value = mode },
+    setSearchQuery: (query: string) => { searchQuery.value = query }
   }
 }

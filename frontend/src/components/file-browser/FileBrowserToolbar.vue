@@ -61,7 +61,6 @@
 </template>
 
 <script setup lang="ts">
-import { watch } from 'vue'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { List, Grid3X3, RefreshCw, Upload, FolderOpen } from 'lucide-vue-next'
@@ -81,7 +80,7 @@ interface Emits {
   (e: 'upload'): void
 }
 
-const props = defineProps<Props>()
+defineProps<Props>()
 const emit = defineEmits<Emits>()
 
 const debouncedSearch = debounce((query: string) => {
