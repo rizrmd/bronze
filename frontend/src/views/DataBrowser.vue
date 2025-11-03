@@ -116,7 +116,7 @@
         </div>
         
         <!-- Data Table -->
-        <DataTable
+        <HandsontableDataTable
           v-if="currentData?.columns"
           :columns="currentData.columns"
           :rows="currentData.rows"
@@ -200,7 +200,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import Switch from '@/components/ui/switch.vue'
 import Label from '@/components/ui/label.vue'
 import { Input } from '@/components/ui/input'
-import DataTable from '@/components/data-browser/DataTable.vue'
+import HandsontableDataTable from '@/components/data-browser/HandsontableDataTable.vue'
 import { 
   Database,
   RefreshCw

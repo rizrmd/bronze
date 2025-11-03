@@ -9,14 +9,22 @@
 export function isAbortError(error: any, wasAborted?: boolean): boolean {
   const has500Error = error.message?.includes('HTTP error! status: 500')
   
+  // Check for patterns that indicate this 500 error is abort-related
+  const isAbortRelated500 = has500Error && (
+    wasAborted || // Most reliable - abort signal was set
+    error.stack?.includes('fetch') || // Error occurred in fetch (likely abort)
+    error.stack?.includes('at browseFolders') || // Our browse function error
+    error.message?.includes('net::ERR_ABORTED') // Browser abort indicator
+  )
+  
   return (
     error.name === 'AbortError' ||
     error.message?.includes('Request aborted') ||
     error.message?.includes('The user aborted a request') ||
     error.message?.includes('net::ERR_ABORTED') ||
     error.code === 'ERR_CANCELED' ||
-    // 500 errors after abort (only if wasAborted is true)
-    (has500Error && wasAborted) ||
+    // 500 errors after abort (only if abort-related patterns detected)
+    isAbortRelated500 ||
     // Axios cancellation
     (typeof error.__CANCEL__ === 'boolean' && error.__CANCEL__) ||
     // DOMException for abort

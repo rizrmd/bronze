@@ -34,6 +34,16 @@ export async function listFiles(prefix?: string): Promise<FileListResponse> {
 export async function browseFolders(folders: any[], onEvent: SSEEventCallback, onError?: SSEErrorCallback, abortController?: AbortController): Promise<void> {
   console.log('browseFolders SSE called with:', { folders })
   
+  // Track if abort was triggered at any point during request
+  let requestWasAborted = false
+  
+  // Set up abort listener immediately
+  if (abortController) {
+    abortController.signal.addEventListener('abort', () => {
+      requestWasAborted = true
+    })
+  }
+  
   try {
     const response = await fetch('/api/files/browse', {
       method: 'POST',
@@ -48,17 +58,22 @@ export async function browseFolders(folders: any[], onEvent: SSEEventCallback, o
 
     // Early exit if request was aborted during fetch
     if (abortController?.signal.aborted) {
+      requestWasAborted = true
       console.log('browseFolders request cancelled during fetch')
       return
     }
 
     // Check if response is ok, but first verify it's not due to cancellation
     if (!response.ok) {
-      const wasAborted = abortController?.signal.aborted
+      // Only ignore 500 errors if there's strong evidence of abort
+      const wasAborted = abortController?.signal.aborted || requestWasAborted
       const is500Error = response.status === 500
       
-      if (wasAborted || is500Error) {
-        console.log('browseFolders request cancelled, ignoring response error')
+      // Check abort evidence: signal state + status pattern + request tracking
+      const hasAbortEvidence = wasAborted && is500Error
+      
+      if (hasAbortEvidence) {
+        console.log('browseFolders request aborted, ignoring 500 response error')
         return
       }
       throw new Error(`HTTP error! status: ${response.status}`)
@@ -168,7 +183,7 @@ export async function browseFolders(folders: any[], onEvent: SSEEventCallback, o
   } catch (error: any) {
     // Silently ignore abort errors - they're intentional cancellations, not real errors
     // Also check if the HTTP error occurred after abortion (common with 500 errors)
-    const wasAborted = abortController?.signal.aborted
+    const wasAborted = abortController?.signal.aborted || requestWasAborted
     const isAbortErrorType = isAbortError(error, wasAborted)
     
     if (wasAborted || isAbortErrorType) {

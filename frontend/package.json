@@ -9,11 +9,13 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@handsontable/vue3": "^16.1.1",
     "@tailwindcss/vite": "^4.1.16",
     "@vueuse/core": "^14.0.0",
     "axios": "^1.13.1",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "handsontable": "^16.1.1",
     "lucide-vue-next": "^0.548.0",
     "reka-ui": "^2.6.0",
     "tailwind-merge": "^3.3.1",
