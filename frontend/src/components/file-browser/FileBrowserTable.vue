@@ -78,7 +78,7 @@
         @dblclick="$emit('download', file)"
       >
         <td class="px-4 py-2">
-          <div class="flex items-center">
+          <div class="flex items-center gap-3">
             <component :is="getFileIconForFile(file)" />
             <span class="font-medium">{{ getFileName(file) }}</span>
           </div>

@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"net/url"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -133,6 +134,11 @@ func (h *FileHandler) streamFolderContents(ctx context.Context, w http.ResponseW
 		default:
 		}
 
+		// Skip the folder marker itself (the requested path)
+		if obj.Key == path {
+			continue
+		}
+
 		// Send each file/directory as individual SSE event
 		eventData := map[string]interface{}{
 			"path":         obj.Key,
@@ -149,7 +155,9 @@ func (h *FileHandler) streamFolderContents(ctx context.Context, w http.ResponseW
 			
 			dirCount++
 			eventData["type"] = "directory"
-			eventData["name"] = filepath.Base(strings.TrimSuffix(obj.Key, "/"))
+			// Properly decode URL-encoded folder names
+			decodedKey, _ := url.PathUnescape(obj.Key)
+			eventData["name"] = filepath.Base(strings.TrimSuffix(decodedKey, "/"))
 			eventData["size"] = int64(itemCount) // Show item count as size
 		} else {
 			fileCount++
@@ -193,9 +201,12 @@ func (h *FileHandler) streamFolderContents(ctx context.Context, w http.ResponseW
 func (h *FileHandler) countItemsInFolder(ctx context.Context, folderPath string) int {
 	count := 0
 	
+	// Decode URL-encoded folder path
+	decodedPath, _ := url.PathUnescape(folderPath)
+	
 	// Use MinIO client to list items in this folder (non-recursive)
 	objectsCh := h.minioClient.GetClient().ListObjects(ctx, h.minioClient.GetBucketName(), minio.ListObjectsOptions{
-		Prefix:    folderPath,
+		Prefix:    decodedPath,
 		Recursive: false, // Only direct children
 	})
 	
