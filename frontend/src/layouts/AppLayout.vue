@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { 
   LayoutDashboard, 
@@ -21,40 +21,37 @@ const navigation = [
   {
     name: 'Dashboard',
     href: '/',
-    icon: LayoutDashboard,
-    current: computed(() => route.name === 'Dashboard')
+    icon: LayoutDashboard
   },
   {
     name: 'Files',
     href: '/files',
-    icon: FolderOpen,
-    current: computed(() => route.name === 'Files')
+    icon: FolderOpen
   },
   {
     name: 'Jobs',
     href: '/jobs',
-    icon: Briefcase,
-    current: computed(() => route.name === 'Jobs')
+    icon: Briefcase
   },
   {
     name: 'Watcher',
     href: '/watcher',
-    icon: Eye,
-    current: computed(() => route.name === 'Watcher')
+    icon: Eye
   },
   {
     name: 'Nessie',
     href: '/nessie',
-    icon: Database,
-    current: computed(() => route.name === 'Nessie')
+    icon: Database
   },
   {
     name: 'Settings',
     href: '/settings',
-    icon: Settings,
-    current: computed(() => route.name === 'Settings')
+    icon: Settings
   }
 ]
+
+// Function to check if nav item is current
+const isCurrent = (href: string) => route.path === href
 
 const toggleSidebar = () => {
   sidebarOpen.value = !sidebarOpen.value
@@ -100,7 +97,7 @@ const toggleSidebar = () => {
           :to="item.href"
           :class="cn(
             'group flex items-center px-2 py-2 text-sm font-medium rounded-md transition-colors',
-            item.current
+            isCurrent(item.href)
               ? 'bg-blue-100 text-blue-700'
               : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
           )"
@@ -108,8 +105,8 @@ const toggleSidebar = () => {
           <component
             :is="item.icon"
             :class="cn(
-              'mr-3 flex-shrink-0 w-5 h-5',
-              item.current ? 'text-blue-500' : 'text-gray-400 group-hover:text-gray-500'
+              'mr-3 w-5 h-5',
+              isCurrent(item.href) ? 'text-blue-500' : 'text-gray-400 group-hover:text-gray-500'
             )"
           />
           <span v-if="sidebarOpen">{{ item.name }}</span>
@@ -120,7 +117,7 @@ const toggleSidebar = () => {
      <!-- Main Content -->
      <div class="flex-1 flex flex-col overflow-hidden">
        <!-- Page Content -->
-       <main class="flex-1 overflow-auto p-6">
+       <main class="flex-1 overflow-auto p-6 relative">
          <router-view />
        </main>
      </div>

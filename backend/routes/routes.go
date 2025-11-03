@@ -61,8 +61,8 @@ func (r *Router) setupRoutes(
 	})
 
 	// Health check
-	r.router.HandleFunc("/health", r.healthCheck).Methods("GET")
-	r.router.HandleFunc("/", r.healthCheck).Methods("GET")
+	r.router.HandleFunc("/api/health", r.healthCheck).Methods("GET")
+	r.router.HandleFunc("/api", r.healthCheck).Methods("GET")
 
 	// File routes - comprehensive endpoints
 	fileRouter := r.router.PathPrefix("/api/files").Subrouter()
@@ -121,6 +121,7 @@ func (r *Router) setupRoutes(
 	// Export routes
 	dataRouter.HandleFunc("/export-single", exportHandler.ExportSingleFile).Methods("POST")
 	dataRouter.HandleFunc("/export-multiple", exportHandler.ExportMultipleFiles).Methods("POST")
+	dataRouter.HandleFunc("/export-job", exportHandler.CreateExportJob).Methods("POST")
 
 	// Configuration routes
 	r.router.HandleFunc("/api/config", r.getConfig).Methods("GET")
@@ -152,7 +153,7 @@ func (r *Router) apiInfo(w http.ResponseWriter, req *http.Request) {
 		"name":        "Bronze Backend API",
 		"version":     "1.0.0",
 		"description": "A Go backend with MinIO integration, file processing, and job management",
-		"openapi":     "/openapi.json",
+		"openapi":     "/api/openapi.json",
 		"endpoints": map[string]any{
 			"files": map[string]any{
 				"browse": map[string]any{

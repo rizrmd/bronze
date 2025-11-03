@@ -4,7 +4,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Database, Eye, MoreVertical, Plus } from 'lucide-vue-next'
-import { nessieApi, type NessieTable } from '@/api/nessie'
+import { listTables, getDatabases, type NessieTable } from '@/services'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 
@@ -27,7 +27,7 @@ const filteredTables = computed(() => {
 const loadDatabases = async () => {
   databasesLoading.value = true
   try {
-    databases.value = await nessieApi.getDatabases()
+    databases.value = await getDatabases()
     if (databases.value.length > 0 && !databases.value.includes(selectedDatabase.value)) {
       selectedDatabase.value = databases.value[0]!
     }
@@ -46,7 +46,7 @@ const loadTables = async () => {
   if (!selectedDatabase.value) return
   loading.value = true
   try {
-    tables.value = await nessieApi.listTables(selectedDatabase.value)
+    tables.value = await listTables(selectedDatabase.value)
   } catch (error) {
     console.error('Failed to load tables:', error)
     tables.value = []

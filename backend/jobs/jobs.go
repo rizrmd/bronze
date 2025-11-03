@@ -34,6 +34,23 @@ const (
 	TriggerAlways    TriggerCondition = "always"
 )
 
+// Export job specific types
+type ExportJobMetadata struct {
+	Files              []ExportFileMetadata `json:"files"`
+	TableName          string               `json:"table_name"`
+	Operation          string               `json:"operation"` // "create" or "append"
+	Database           string               `json:"database,omitempty"`
+	SchemaResolution   string               `json:"schema_resolution,omitempty"`
+	MaxErrors          int                  `json:"max_errors,omitempty"`
+	AutoTypeConversion bool                 `json:"auto_type_conversion,omitempty"`
+}
+
+type ExportFileMetadata struct {
+	FileName   string `json:"file_name"`
+	SheetName  string `json:"sheet_name,omitempty"`
+	TreatAsCSV bool   `json:"treat_as_csv,omitempty"`
+}
+
 type JobTrigger struct {
 	Type       string           `json:"type"`
 	Condition  TriggerCondition `json:"condition"`
@@ -67,6 +84,7 @@ type JobResult struct {
 	FileInfo       map[string]any `json:"file_info,omitempty"`
 	ProcessingTime time.Duration  `json:"processing_time"`
 	Message        string         `json:"message"`
+	Result         any            `json:"result,omitempty"`
 }
 
 func NewJob(jobType, filePath, bucket, objectName string, priority JobPriority) *Job {

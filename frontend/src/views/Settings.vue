@@ -2,7 +2,7 @@
  import { ref, onMounted, computed } from 'vue'
  import { useJobs } from '@/composables/useApi'
  import { useConfig, type ConfigData } from '@/composables/useConfig'
- import { apiClient } from '@/api'
+ import { getApiInfo } from '@/services'
  import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
  import { Button } from '@/components/ui/button'
  import { Input } from '@/components/ui/input'
@@ -23,10 +23,6 @@
  const { 
    config, 
    loading: configLoading, 
-   error: configError,
-   serverConfig,
-   minioConfig,
-   processingConfig,
    fetchConfig,
    updateConfig,
    resetConfig
@@ -56,7 +52,7 @@ const handleUpdateWorkers = async () => {
 
 const fetchApiInfo = async () => {
   try {
-    const response = await apiClient.getApiInfo()
+    const response = await getApiInfo()
     if (response.success) {
       apiInfo.value = response.data
     }
@@ -177,7 +173,7 @@ const fetchApiInfo = async () => {
                     @input="updateConfigField('SERVER_PORT', $event.target.value)"
                     :disabled="!editingConfig"
                     type="number"
-                    placeholder="8080"
+                    placeholder="8060"
                   />
                </div>
              </div>
@@ -319,7 +315,7 @@ const fetchApiInfo = async () => {
                  <label class="block text-sm font-medium text-gray-700 mb-1">Decompression Enabled</label>
                   <select
                     :model-value="editingConfig ? configChanges.DECOMPRESSION_ENABLED : config.DECOMPRESSION_ENABLED"
-                    @change="updateConfigField('DECOMPRESSION_ENABLED', $event.target.value)"
+                    @change="updateConfigField('DECOMPRESSION_ENABLED', ($event.target as HTMLSelectElement).value)"
                     :disabled="!editingConfig"
                     class="w-full px-3 py-2 border border-gray-300 rounded-md"
                   >
@@ -331,7 +327,7 @@ const fetchApiInfo = async () => {
                  <label class="block text-sm font-medium text-gray-700 mb-1">Password Protected</label>
                   <select
                     :model-value="editingConfig ? configChanges.PASSWORD_PROTECTED : config.PASSWORD_PROTECTED"
-                    @change="updateConfigField('PASSWORD_PROTECTED', $event.target.value)"
+                    @change="updateConfigField('PASSWORD_PROTECTED', ($event.target as HTMLSelectElement).value)"
                     :disabled="!editingConfig"
                     class="w-full px-3 py-2 border border-gray-300 rounded-md"
                  >
@@ -343,7 +339,7 @@ const fetchApiInfo = async () => {
                  <label class="block text-sm font-medium text-gray-700 mb-1">Extract to Subfolder</label>
                   <select
                     :model-value="editingConfig ? configChanges.EXTRACT_TO_SUBFOLDER : config.EXTRACT_TO_SUBFOLDER"
-                    @change="updateConfigField('EXTRACT_TO_SUBFOLDER', $event.target.value)"
+                    @change="updateConfigField('EXTRACT_TO_SUBFOLDER', ($event.target as HTMLSelectElement).value)"
                     :disabled="!editingConfig"
                     class="w-full px-3 py-2 border border-gray-300 rounded-md"
                  >

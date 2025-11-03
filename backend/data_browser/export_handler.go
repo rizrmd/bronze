@@ -84,7 +84,7 @@ type ExportHandler struct {
 	browser      *DataBrowserHandler
 }
 
-func (h *ExportHandler) ExportSingleFile(w http.ResponseWriter, r *http.Request) {
+func (h *ExportHandler) CreateExportJob(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
@@ -96,13 +96,33 @@ func (h *ExportHandler) ExportSingleFile(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	if len(request.Files) != 1 {
-		h.writeError(w, "This endpoint only supports single file exports", http.StatusBadRequest, nil)
-		return
+
+
+
+
+	// Forward to job handler - this would need to be injected or passed in
+	// For now, process directly but mark as job-like response
+	response := h.processExport(r.Context(), request)
+	
+	// Add job-like information to response
+	jobID := fmt.Sprintf("export-%d", time.Now().Unix())
+	exportResponse := map[string]interface{}{
+		"success":      response.Success,
+		"message":      response.Message,
+		"job_id":       jobID,
+		"job_type":     "export",
+		"status":       "completed", // For direct processing
+		"files_processed": response.FilesProcessed,
+		"rows_exported":   response.RowsExported,
+		"rows_failed":     response.RowsFailed,
+		"processing_time":  response.ProcessingTime.String(),
+		"table_name":      response.TableName,
+		"database":        response.Database,
 	}
 
-	response := h.processExport(r.Context(), request)
-	h.writeJSONResponse(w, response)
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(exportResponse)
 }
 
 func (h *ExportHandler) ExportMultipleFiles(w http.ResponseWriter, r *http.Request) {
@@ -373,4 +393,25 @@ func (h *ExportHandler) writeError(w http.ResponseWriter, message string, status
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(statusCode)
 	json.NewEncoder(w).Encode(response)
+}
+
+func (h *ExportHandler) ExportSingleFile(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	var request ExportRequest
+	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+		h.writeError(w, "Failed to decode request", http.StatusBadRequest, err)
+		return
+	}
+
+	if len(request.Files) != 1 {
+		h.writeError(w, "This endpoint only supports single file exports", http.StatusBadRequest, nil)
+		return
+	}
+
+	response := h.processExport(r.Context(), request)
+	h.writeJSONResponse(w, response)
 }

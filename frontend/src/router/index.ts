@@ -15,6 +15,12 @@ const routes: RouteRecordRaw[] = [
     meta: { title: 'Files' }
   },
   {
+    path: '/data-browser',
+    name: 'DataBrowser',
+    component: () => import('@/views/DataBrowser.vue'),
+    meta: { title: 'Data Browser' }
+  },
+  {
     path: '/jobs',
     name: 'Jobs',
     component: () => import('@/views/JobsManager.vue'),

@@ -1,5 +1,5 @@
 import { ref, computed } from 'vue'
-import { apiClient } from '@/api'
+import { getConfig as getConfigService, updateConfig as updateConfigService } from '@/services'
 
 export interface ConfigData {
   SERVER_HOST: string
@@ -24,7 +24,7 @@ export interface ConfigData {
 export function useConfig() {
   const config = ref<ConfigData>({
     SERVER_HOST: 'localhost',
-    SERVER_PORT: '8080',
+    SERVER_PORT: '8060',
       MINIO_ENDPOINT: 'localhost:9000',
     MINIO_ACCESS_KEY: 'minioadmin',
     MINIO_SECRET_KEY: 'minioadmin',
@@ -78,7 +78,7 @@ export function useConfig() {
     error.value = null
     
     try {
-      const response = await apiClient.getConfig()
+      const response = await getConfigService()
       if (response.success && response.data) {
         config.value = { ...config.value, ...response.data }
         fetched = true
@@ -100,7 +100,7 @@ export function useConfig() {
     error.value = null
     
     try {
-      const response = await apiClient.updateConfig(updates as Record<string, string>)
+      const response = await updateConfigService(updates as Record<string, string>)
       if (response.success) {
         // Update local config with the changes
         config.value = { ...config.value, ...updates }
@@ -118,7 +118,7 @@ export function useConfig() {
   const resetConfig = () => {
     config.value = {
       SERVER_HOST: 'localhost',
-      SERVER_PORT: '8080',
+      SERVER_PORT: '8060',
     MINIO_ENDPOINT: 'localhost:9000',
       MINIO_ACCESS_KEY: 'minioadmin',
       MINIO_SECRET_KEY: 'minioadmin',

@@ -11,41 +11,10 @@ export default defineConfig({
     },
   },
   server: {
-    port: 5173,
-    clearScreen: false,
+    port: 8070,
     proxy: {
       '/api': {
-        target: 'http://localhost:8080',
-        changeOrigin: true,
-        secure: false,
-      },
-      '/health': {
-        target: 'http://localhost:8080',
-        changeOrigin: true,
-        secure: false,
-      },
-      '/files': {
-        target: 'http://localhost:8080',
-        changeOrigin: true,
-        secure: false,
-      },
-      '/jobs': {
-        target: 'http://localhost:8080',
-        changeOrigin: true,
-        secure: false,
-      },
-      '/watcher': {
-        target: 'http://localhost:8080',
-        changeOrigin: true,
-        secure: false,
-      },
-      '/config': {
-        target: 'http://localhost:8080',
-        changeOrigin: true,
-        secure: false,
-      },
-      '/openapi.json': {
-        target: 'http://localhost:8080',
+        target: 'http://localhost:8060',
         changeOrigin: true,
         secure: false,
       }

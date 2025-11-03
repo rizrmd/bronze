@@ -60,6 +60,7 @@ type FolderRequest struct {
 	IncludeDirs  bool   `json:"include_dirs"`           // Include directories in response
 	Recursive    bool   `json:"recursive"`              // Include subdirectories
 	MaxDepth     int    `json:"max_depth,omitempty"`    // Max recursion depth (if recursive)
+	IncludeMetadata bool `json:"include_metadata,omitempty"` // Include file counts and sizes for directories
 }
 
 // Multi-folder response with rich metadata
@@ -247,6 +248,13 @@ func (h *FileHandler) MultiFolderBrowse(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
+	// Check if SSE is requested
+	isSSE := r.URL.Query().Get("stream") == "sse"
+	if isSSE {
+		h.streamFolderBrowse(w, r)
+		return
+	}
+
 	// Check bucket status first
 	log.Printf("MultiFolderBrowse handler: checking bucket status")
 	bucketOk, bucketMsg := h.checkBucketStatus()
@@ -330,6 +338,162 @@ func (h *FileHandler) MultiFolderBrowse(w http.ResponseWriter, r *http.Request) 
 	h.writeJSON(w, http.StatusOK, response)
 }
 
+// SSE streaming for folder browsing
+func (h *FileHandler) streamFolderBrowse(w http.ResponseWriter, r *http.Request) {
+	// Check bucket status first
+	bucketOk, bucketMsg := h.checkBucketStatus()
+	if !bucketOk {
+		h.writeSSEError(w, bucketMsg, http.StatusServiceUnavailable, fmt.Errorf("bucket not accessible"))
+		return
+	}
+
+	// Parse request body
+	var req MultiFolderRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		h.writeSSEError(w, "Invalid JSON", http.StatusBadRequest, err)
+		return
+	}
+
+	// Set SSE headers
+	w.Header().Set("Content-Type", "text/event-stream")
+	w.Header().Set("Cache-Control", "no-cache")
+	w.Header().Set("Connection", "keep-alive")
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Access-Control-Allow-Headers", "Cache-Control")
+
+	ctx, cancel := context.WithTimeout(r.Context(), 300*time.Second)
+	defer cancel()
+
+	// Send initial connection event
+	h.writeSSEEvent(w, "connected", `{"status":"connected"}`)
+	
+	// Create a flusher for real-time updates
+	flusher, ok := w.(http.Flusher)
+	if !ok {
+		http.Error(w, "Streaming unsupported", http.StatusInternalServerError)
+		return
+	}
+
+	// Process folders with streaming updates
+	resultChan := make(chan struct {
+		path   string
+		result FolderResult
+		err    error
+	}, len(req.Folders))
+
+	// Process folders in parallel with controlled concurrency
+	maxConcurrency := 10
+	if len(req.Folders) < maxConcurrency {
+		maxConcurrency = len(req.Folders)
+	}
+	
+	semaphore := make(chan struct{}, maxConcurrency)
+	completed := make(chan string, len(req.Folders))
+	results := make(map[string]FolderResult)
+
+	// Start goroutines for each folder
+	for i, folderReq := range req.Folders {
+		go func(idx int, folderReq FolderRequest) {
+			semaphore <- struct{}{} // Acquire
+			defer func() { <-semaphore }() // Release
+
+			result, err := h.processFolder(ctx, folderReq, 1000)
+			resultChan <- struct {
+				path   string
+				result FolderResult
+				err    error
+			}{path: folderReq.Path, result: result, err: error(err)}
+		}(i, folderReq)
+	}
+
+	// Stream results as they complete
+	go func() {
+		for i := 0; i < len(req.Folders); i++ {
+			select {
+			case result := <-resultChan:
+				if result.err != nil {
+					h.writeSSEError(w, fmt.Sprintf("Error processing %s", result.path), http.StatusInternalServerError, result.err)
+				} else {
+					// Send folder start event
+					h.writeSSEEvent(w, "folder_start", fmt.Sprintf(`{"path":"%s","status":"processing"}`, result.path))
+					
+					// Stream folder metadata
+					folderJSON, _ := json.Marshal(result.result)
+					h.writeSSEEvent(w, "folder_data", string(folderJSON))
+					
+					// Send folder complete event
+					fileCount := result.result.FileCount + result.result.DirCount
+					h.writeSSEEvent(w, "folder_complete", fmt.Sprintf(`{"path":"%s","status":"completed","items":%d}`, result.path, fileCount))
+					
+					results[result.path] = result.result
+					completed <- result.path
+					
+					// Flush immediately
+					if flusher != nil {
+						flusher.Flush()
+					}
+				}
+			case <-ctx.Done():
+				return
+			}
+		}
+	}()
+
+	// Wait for completion or timeout
+	for i := 0; i < len(req.Folders); i++ {
+		select {
+		case <-completed:
+			// Continue waiting for more completions
+		case <-ctx.Done():
+			h.writeSSEEvent(w, "timeout", `{"status":"timeout"}`)
+			return
+		}
+	}
+
+	// Send final completion event
+	finalResponse := MultiFolderResponse{
+		Success: true,
+		Folders: results,
+		Message: fmt.Sprintf("Successfully processed %d folders", len(req.Folders)),
+	}
+	finalJSON, _ := json.Marshal(finalResponse)
+	h.writeSSEEvent(w, "complete", string(finalJSON))
+	
+	// Send keepalive events periodically
+	keepalive := time.NewTicker(15 * time.Second)
+	defer keepalive.Stop()
+	
+	for {
+		select {
+		case <-keepalive.C:
+			h.writeSSEEvent(w, "keepalive", `{"status":"alive"}`)
+			if flusher != nil {
+				flusher.Flush()
+			}
+		case <-ctx.Done():
+			h.writeSSEEvent(w, "closed", `{"status":"connection_closed"}`)
+			return
+		}
+	}
+}
+
+// Helper functions for SSE
+func (h *FileHandler) writeSSEEvent(w http.ResponseWriter, event string, data string) {
+	fmt.Fprintf(w, "event: %s\n", event)
+	fmt.Fprintf(w, "data: %s\n\n", data)
+}
+
+func (h *FileHandler) writeSSEError(w http.ResponseWriter, message string, code int, err error) {
+	errorData := map[string]interface{}{
+		"error":   message,
+		"code":    code,
+		"details": err.Error(),
+	}
+	errorJSON, _ := json.Marshal(errorData)
+	fmt.Fprintf(w, "event: error\n")
+	fmt.Fprintf(w, "data: %s\n\n", string(errorJSON))
+}
+
 // Helper function to process a single folder with all its options
 func (h *FileHandler) processFolder(ctx context.Context, folderReq FolderRequest, limit int) (FolderResult, error) {
 	// Normalize path
@@ -376,6 +540,32 @@ func (h *FileHandler) processFolder(ctx context.Context, folderReq FolderRequest
 					Path:         obj.Key,
 					LastModified: obj.LastModified.Format(time.RFC3339),
 				}
+				
+				// Count items in this directory if metadata is requested
+				if folderReq.IncludeMetadata {
+					subFiles, err := h.minioClient.ListFiles(ctx, obj.Key, 0)
+					if err == nil {
+						fileCount, dirCount, totalSize := 0, 0, int64(0)
+						for _, subObj := range subFiles {
+							relativeSubPath := strings.TrimPrefix(subObj.Key, obj.Key)
+							relativeSubPath = strings.TrimPrefix(relativeSubPath, "/")
+							
+							if relativeSubPath == "" {
+								continue // Skip self
+							}
+							
+							if strings.HasSuffix(subObj.Key, "/") && subObj.Size == 0 {
+								dirCount++
+							} else {
+								fileCount++
+								totalSize += subObj.Size
+							}
+						}
+						dirInfo.FileCount = fileCount
+						dirInfo.Size = totalSize
+					}
+				}
+				
 				dirMap[dirName] = dirInfo
 				result.DirCount++
 			}
@@ -421,6 +611,14 @@ func (h *FileHandler) processFolder(ctx context.Context, folderReq FolderRequest
 			subResult, err := h.processFolder(ctx, subFolderReq, limit)
 			if err == nil {
 				result.Subfolders[dirName] = &subResult
+			}
+		}
+		
+		// Populate file_count and dir_count for directories from subfolder results
+		for i, dir := range result.Directories {
+			if subResult, exists := result.Subfolders[dir.Name]; exists {
+				result.Directories[i].FileCount = subResult.FileCount
+				result.Directories[i].Size = subResult.Size
 			}
 		}
 	}

@@ -20,7 +20,7 @@
     }
   ],
   "paths": {
-    "/": {
+    "/api": {
       "get": {
         "summary": "Health check",
         "description": "Check if the API is running and healthy",
@@ -39,7 +39,7 @@
         }
       }
     },
-    "/health": {
+    "/api/health": {
       "get": {
         "summary": "Health check",
         "description": "Check if the API is running and healthy",
@@ -77,7 +77,7 @@
         }
       }
     },
-    "/files": {
+    "/api/files": {
       "post": {
         "summary": "Upload file",
         "description": "Upload a file to MinIO storage",
@@ -176,7 +176,7 @@
         }
       }
     },
-    "/files/{filename}": {
+    "/api/files/{filename}": {
       "get": {
         "summary": "Download file",
         "description": "Download a specific file from MinIO storage",
@@ -275,7 +275,7 @@
         }
       }
     },
-    "/files/{filename}/presigned": {
+    "/api/files/{filename}/presigned": {
       "get": {
         "summary": "Generate presigned URL",
         "description": "Generate a presigned URL for temporary file access",
@@ -335,7 +335,7 @@
         }
       }
     },
-    "/jobs": {
+    "/api/jobs": {
       "post": {
         "summary": "Create job",
         "description": "Create a new processing job",
@@ -423,7 +423,7 @@
         }
       }
     },
-    "/jobs/stats": {
+    "/api/jobs/stats": {
       "get": {
         "summary": "Get statistics",
         "description": "Get job queue and worker pool statistics",
@@ -452,7 +452,7 @@
         }
       }
     },
-    "/jobs/workers": {
+    "/api/jobs/workers": {
       "put": {
         "summary": "Update worker count",
         "description": "Update the number of workers in the pool",
@@ -491,7 +491,7 @@
         }
       }
     },
-    "/jobs/workers/calculate-max": {
+    "/api/jobs/workers/calculate-max": {
       "get": {
         "summary": "Calculate maximum workers",
         "description": "Calculate the optimal number of workers based on CPU cores",
@@ -520,7 +520,7 @@
         }
       }
     },
-    "/jobs/workers/active": {
+    "/api/jobs/workers/active": {
       "get": {
         "summary": "Get active jobs",
         "description": "Get currently active/processing jobs",
@@ -549,7 +549,7 @@
         }
       }
     },
-    "/jobs/{id}": {
+    "/api/jobs/{id}": {
       "get": {
         "summary": "Get job",
         "description": "Get specific job details",
@@ -647,7 +647,7 @@
         }
       }
     },
-    "/jobs/{id}/priority": {
+    "/api/jobs/{id}/priority": {
       "put": {
         "summary": "Update job priority",
         "description": "Update the priority of a specific job",
@@ -717,7 +717,7 @@
         }
       }
     },
-    "/watcher/events/unprocessed": {
+    "/api/watcher/events/unprocessed": {
       "get": {
         "summary": "Get unprocessed events",
         "description": "Get unprocessed file change events from the watcher",
@@ -760,7 +760,7 @@
         }
       }
     },
-    "/watcher/events/history": {
+    "/api/watcher/events/history": {
       "get": {
         "summary": "Get event history",
         "description": "Get file change event history from the watcher",
@@ -803,7 +803,7 @@
         }
       }
     },
-    "/watcher/events/mark-processed": {
+    "/api/watcher/events/mark-processed": {
       "post": {
         "summary": "Mark event as processed",
         "description": "Mark a file event as processed",

@@ -11,7 +11,7 @@ import (
 type WorkerPool struct {
 	workers    int
 	jobQueue   *JobQueue
-	processor  JobProcessor
+	processor  interface{}
 	ctx        context.Context
 	cancel     context.CancelFunc
 	wg         sync.WaitGroup
@@ -19,11 +19,7 @@ type WorkerPool struct {
 	mu         sync.RWMutex
 }
 
-type JobProcessor interface {
-	ProcessJob(ctx context.Context, job *Job) JobResult
-}
-
-func NewWorkerPool(workers int, jobQueue *JobQueue, processor JobProcessor) *WorkerPool {
+func NewWorkerPool(workers int, jobQueue *JobQueue, processor interface{}) *WorkerPool {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	return &WorkerPool{
@@ -89,7 +85,20 @@ func (wp *WorkerPool) processJob(workerID int, job *Job) {
 	job.Start()
 	wp.jobQueue.UpdateJobStatus(job.ID, JobStatusProcessing)
 
-	result := wp.processor.ProcessJob(wp.ctx, job)
+	var result JobResult
+
+	// Route job to appropriate processor based on type
+	switch job.Type {
+	default:
+		if processor, ok := wp.processor.(interface{ ProcessJob(context.Context, *Job) JobResult }); ok {
+			result = processor.ProcessJob(wp.ctx, job)
+		} else {
+			result = JobResult{
+				Success: false,
+				Message: "Invalid job processor",
+			}
+		}
+	}
 
 	if result.Success {
 		job.Complete(result)
@@ -103,6 +112,8 @@ func (wp *WorkerPool) processJob(workerID int, job *Job) {
 		wp.executeTriggers(job, TriggerOnFailure)
 	}
 }
+
+
 
 func (wp *WorkerPool) executeTriggers(parentJob *Job, condition TriggerCondition) {
 	for _, trigger := range parentJob.Triggers {

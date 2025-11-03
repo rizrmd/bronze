@@ -1,5 +1,19 @@
 import { ref, readonly, inject } from 'vue'
-import { apiClient } from '@/api'
+import { 
+  uploadFile as uploadFileService,
+  listFiles as listFilesService,
+  createJob as createJobService,
+  getJobs as getJobsService,
+  cancelJob as cancelJobService,
+  updateJobPriority as updateJobPriorityService,
+  getJobStats as getJobStatsService,
+  updateWorkerCount as updateWorkerCountService,
+  getActiveJobs as getActiveJobsService,
+  getUnprocessedEvents,
+  getEventHistory,
+  markEventProcessed as markEventProcessedService
+} from '@/services'
+import { deleteFile as deleteFileService, downloadFile as downloadFileService } from '@/services/api/files'
 import type { JobStats, FileInfo, Job, FileEvent } from '@/types'
 
 export function useApi() {
@@ -32,13 +46,12 @@ export function useApi() {
     setLoading,
     setError,
     clearError,
-    handleSuccess,
-    apiClient
+    handleSuccess
   }
 }
 
 export function useJobs() {
-  const { loading, error, setLoading, setError, clearError, handleSuccess, apiClient } = useApi()
+  const { loading, error, setLoading, setError, clearError, handleSuccess } = useApi()
   const jobs = ref<Job[]>([])
   const jobStats = ref<JobStats | null>(null)
   const activeJobs = ref<Job[]>([])
@@ -47,7 +60,7 @@ export function useJobs() {
     setLoading(true)
     clearError()
     try {
-      const response = await apiClient.getJobs(status)
+      const response = await getJobsService(status)
       if (response.success) {
         jobs.value = response.jobs || []
       } else {
@@ -64,7 +77,7 @@ export function useJobs() {
     setLoading(true)
     clearError()
     try {
-      const response = await apiClient.getJobStats()
+      const response = await getJobStatsService()
       if (response.success) {
         jobStats.value = response.data || null
       } else {
@@ -81,7 +94,7 @@ export function useJobs() {
     setLoading(true)
     clearError()
     try {
-      const response = await apiClient.getActiveJobs()
+      const response = await getActiveJobsService()
       if (response.success) {
         activeJobs.value = response.jobs || []
       } else {
@@ -98,7 +111,7 @@ export function useJobs() {
     setLoading(true)
     clearError()
     try {
-      const response = await apiClient.createJob(jobData)
+      const response = await createJobService(jobData)
       if (response.success) {
         await fetchJobs()
         handleSuccess('Job created successfully')
@@ -119,7 +132,7 @@ export function useJobs() {
     setLoading(true)
     clearError()
     try {
-      const response = await apiClient.cancelJob(jobId)
+      const response = await cancelJobService(jobId)
       if (response.success) {
         await fetchJobs()
         handleSuccess('Job cancelled successfully')
@@ -140,7 +153,7 @@ export function useJobs() {
     setLoading(true)
     clearError()
     try {
-      const response = await apiClient.updateJobPriority(jobId, priority)
+      const response = await updateJobPriorityService(jobId, priority)
       if (response.success) {
         await fetchJobs()
         handleSuccess('Job priority updated successfully')
@@ -161,7 +174,7 @@ export function useJobs() {
     setLoading(true)
     clearError()
     try {
-      const response = await apiClient.updateWorkerCount(count)
+      const response = await updateWorkerCountService(count)
       if (response.success) {
         handleSuccess('Worker count updated successfully')
         return true
@@ -194,14 +207,14 @@ export function useJobs() {
 }
 
 export function useFiles() {
-  const { loading, error, setLoading, setError, clearError, handleSuccess, apiClient } = useApi()
+  const { loading, error, setLoading, setError, clearError, handleSuccess } = useApi()
   const files = ref<FileInfo[]>([])
 
   const fetchFiles = async (prefix?: string) => {
     setLoading(true)
     clearError()
     try {
-      const response = await apiClient.listFiles(prefix)
+      const response = await listFilesService(prefix)
       if (response.success) {
         files.value = response.files || []
       } else {
@@ -218,7 +231,7 @@ export function useFiles() {
     setLoading(true)
     clearError()
     try {
-      const response = await apiClient.uploadFile(file, objectName)
+      const response = await uploadFileService(file, objectName)
       if (response.success) {
         await fetchFiles()
         handleSuccess('File uploaded successfully')
@@ -239,7 +252,7 @@ export function useFiles() {
     setLoading(true)
     clearError()
     try {
-      const response = await apiClient.deleteFile(filename)
+      const response = await deleteFileService(filename)
       if (response.success) {
         await fetchFiles()
         handleSuccess('File deleted successfully')
@@ -260,7 +273,7 @@ export function useFiles() {
     setLoading(true)
     clearError()
     try {
-      const blob = await apiClient.downloadFile(filename)
+      const blob = await downloadFileService(filename)
       const url = window.URL.createObjectURL(blob)
       const a = document.createElement('a')
       a.href = url
@@ -290,7 +303,7 @@ export function useFiles() {
 }
 
 export function useWatcher() {
-  const { loading, error, setLoading, setError, clearError, handleSuccess, apiClient } = useApi()
+  const { loading, error, setLoading, setError, clearError, handleSuccess } = useApi()
   const events = ref<FileEvent[]>([])
   const unprocessedEvents = ref<FileEvent[]>([])
 
@@ -298,7 +311,7 @@ export function useWatcher() {
     setLoading(true)
     clearError()
     try {
-      const response = await apiClient.getEventHistory(limit)
+      const response = await getEventHistory(limit)
       if (response.success) {
         events.value = response.events || []
       } else {
@@ -315,7 +328,7 @@ export function useWatcher() {
     setLoading(true)
     clearError()
     try {
-      const response = await apiClient.getUnprocessedEvents(limit)
+      const response = await getUnprocessedEvents(limit)
       if (response.success) {
         unprocessedEvents.value = response.events || []
       } else {
@@ -332,7 +345,7 @@ export function useWatcher() {
     setLoading(true)
     clearError()
     try {
-      const response = await apiClient.markEventProcessed(eventId)
+      const response = await markEventProcessedService(eventId)
       if (response.success) {
         await fetchUnprocessedEvents()
         await fetchEventHistory()
