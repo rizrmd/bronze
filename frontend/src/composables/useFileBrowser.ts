@@ -240,12 +240,7 @@ export function useFileBrowser(options: FileBrowserOptions = {}) {
               } else if (data.type === 'directory') {
                 const folderName = data.name || data.path
                 
-                // Check if folder already exists in folders array (pre-populated from folder_start)
-                const existingFolderIndex = folders.value.findIndex(folder => 
-                  folder.path === data.path || folder.name === folderName
-                )
-                
-                if (existingFolderIndex === -1 && !seenFolders.value.has(folderName)) {
+                if (!seenFolders.value.has(folderName)) {
                   // New folder - add it with full metadata
                   seenFolders.value.add(folderName)
                   folders.value.push({
@@ -257,17 +252,22 @@ export function useFileBrowser(options: FileBrowserOptions = {}) {
                     total_count: data.size || 0, // For folders, size is item count
                     size: data.size || 0 // Store original size (item count for folders)
                   })
-                } else if (existingFolderIndex !== -1) {
-                  // Folder already exists but might need metadata update
-                  folders.value[existingFolderIndex] = {
-                    ...folders.value[existingFolderIndex],
-                    ...data,
-                    name: data.name,
-                    path: data.path,
-                    file_count: 0,
-                    dir_count: 0,
-                    total_count: data.size || 0,
-                    size: data.size || 0
+                } else {
+                  // Existing folder - update its metadata
+                  const folderIndex = folders.value.findIndex(folder => 
+                    folder.path === data.path || folder.name === folderName
+                  )
+                  if (folderIndex !== -1) {
+                    folders.value[folderIndex] = {
+                      ...folders.value[folderIndex],
+                      ...data,
+                      name: data.name,
+                      path: data.path,
+                      file_count: 0,
+                      dir_count: 0,
+                      total_count: data.size || 0,
+                      size: data.size || 0
+                    }
                   }
                 }
                 

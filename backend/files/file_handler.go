@@ -328,8 +328,47 @@ func (h *FileHandler) streamFolderBrowse(w http.ResponseWriter, r *http.Request)
 				if result.err != nil {
 					h.writeSSEError(w, fmt.Sprintf("Error processing %s", result.path), http.StatusInternalServerError, result.err)
 				} else {
-					// Send folder start event
-					h.writeSSEEvent(w, "folder_start", fmt.Sprintf(`{"path":"%s","status":"processing"}`, result.path))
+					// Create directory listing from existing folder result
+					var items []map[string]interface{}
+					
+					// Add directories
+					for _, dir := range result.result.Directories {
+						// Extract just the directory name from path
+						dirName := dir.Name
+						if dirName == "" {
+							parts := strings.Split(strings.TrimSuffix(dir.Path, "/"), "/")
+							if len(parts) > 0 {
+								dirName = parts[len(parts)-1]
+							}
+						}
+						if dirName != "" {
+							items = append(items, map[string]interface{}{
+								"name": dirName,
+								"type": "dir",
+							})
+						}
+					}
+					
+					// Add files
+					for _, file := range result.result.Files {
+						// Use the Name field directly
+						fileName := file.Name
+						if fileName != "" {
+							items = append(items, map[string]interface{}{
+								"name": fileName,
+								"type": "file",
+							})
+						}
+					}
+					
+					// Create folder_start event with directory listing
+					folderStartData := map[string]interface{}{
+						"path":   result.path,
+						"status": "processing",
+						"items":  items,
+					}
+					folderStartJSON, _ := json.Marshal(folderStartData)
+					h.writeSSEEvent(w, "folder_start", string(folderStartJSON))
 					
 					// Stream folder metadata
 					folderJSON, _ := json.Marshal(result.result)
@@ -449,6 +488,12 @@ func (h *FileHandler) processFolder(ctx context.Context, folderReq FolderRequest
 			// Handle directory
 			dirName := strings.TrimSuffix(relativePath, "/")
 			if dirName != "" && folderReq.IncludeDirs {
+				// Skip current directory from being added to its own listing
+				currentDirName := strings.TrimSuffix(strings.TrimPrefix(path, "/"), "/")
+				if dirName == currentDirName {
+					continue // Skip current directory
+				}
+				
 				dirInfo := DirectoryInfo{
 					Name:         dirName,
 					Path:         obj.Key,

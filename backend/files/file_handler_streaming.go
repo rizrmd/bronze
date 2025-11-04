@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"net/url"
 	"path/filepath"
@@ -111,8 +112,44 @@ func (h *FileHandler) streamFolderContents(ctx context.Context, w http.ResponseW
 		path += "/"
 	}
 
-	// Send folder start event
-	h.writeSSEEvent(w, "folder_start", fmt.Sprintf(`{"path":"%s","status":"processing"}`, folderReq.Path))
+	// Get directory listing for folder_start event using MinIO
+	var items []map[string]interface{}
+	log.Printf("folder_start: Listing files for path: %s", path)
+	if objects, err := h.minioClient.ListFiles(ctx, path, 1000); err == nil {
+		log.Printf("folder_start: Found %d objects for path: %s", len(objects), path)
+		for _, obj := range objects {
+			// Determine if it's a directory based on the key ending with "/"
+			itemType := "file"
+			name := obj.Key
+			if strings.HasSuffix(obj.Key, "/") && obj.Size == 0 {
+				itemType = "dir"
+				name = strings.TrimSuffix(obj.Key, "/")
+			}
+			
+			// Extract just the name (last path component)
+			if name != "" {
+				name = filepath.Base(name)
+			}
+			
+			if name != "" {
+				items = append(items, map[string]interface{}{
+					"name": name,
+					"type": itemType,
+				})
+			}
+		}
+	} else {
+		log.Printf("folder_start: Error listing files for path %s: %v", path, err)
+	}
+	
+	// Create folder_start event with directory listing
+	folderStartData := map[string]interface{}{
+		"path":   folderReq.Path,
+		"status": "processing",
+		"items":  items,
+	}
+	folderStartJSON, _ := json.Marshal(folderStartData)
+	h.writeSSEEvent(w, "folder_start", string(folderStartJSON))
 	safeFlush()
 
 	// Use MinIO's ListFiles method for streaming with smaller limit for responsiveness
