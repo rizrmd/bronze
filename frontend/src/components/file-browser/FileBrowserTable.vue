@@ -16,70 +16,55 @@
         </th>
       </tr>
     </thead>
-    
+
     <tbody class="bg-white divide-y divide-gray-200">
       <!-- Folders -->
-      <tr
-        v-for="folder in sortedFolders"
-        :key="folder.path"
-        class="hover:bg-gray-50 cursor-pointer"
-        @click="$emit('navigate', folder)"
-        @dblclick="$emit('open-folder', folder)"
-      >
+      <tr v-for="folder in sortedFolders" :key="folder.path" class="hover:bg-gray-50 cursor-pointer"
+        @click="$emit('navigate', folder)" @dblclick="$emit('open-folder', folder)">
         <td class="px-4 py-2">
           <div class="flex items-center">
             <Folder class="w-6 h-6 text-blue-500 mr-3" />
             <span class="font-medium">{{ folder.name || 'Unknown' }}</span>
           </div>
         </td>
-        
+
         <td class="px-4 py-2 text-sm text-gray-500">
           {{ folder.total_count || 0 }} items
           <span v-if="folder.file_count || folder.dir_count" class="text-xs text-gray-400">
             ({{ folder.file_count || 0 }} files, {{ folder.dir_count || 0 }} folders)
           </span>
         </td>
-        
+
         <td class="px-4 py-2 text-sm text-gray-500">
           Folder
         </td>
 
       </tr>
-      
+
       <!-- Files -->
-      <tr
-        v-for="file in sortedFiles"
-        :key="file.key"
-        class="hover:bg-gray-50 cursor-pointer"
-        :class="{}"
-      >
+      <tr v-for="file in sortedFiles" :key="file.key" class="hover:bg-gray-50 cursor-pointer" :class="{}"
+        @click="$emit('open-file', file)">
         <td class="px-4 py-2">
           <div class="flex items-center gap-3">
             <component :is="getFileIconForFile(file)" />
-            <span 
-              class="font-medium"
-              @click="$emit('open-file', file)"
-            >
+            <span class="font-medium">
               {{ getFileName(file) }}
             </span>
           </div>
         </td>
-        
+
         <td class="px-4 py-2 text-sm text-gray-500">
           {{ formatFileSize(file.size) }}
         </td>
-        
+
         <td class="px-4 py-2 text-sm text-gray-500">
           {{ formatDate(file.last_modified) }}
         </td>
 
         <td class="px-4 py-2 text-sm text-gray-500">
           <div class="flex items-center gap-2">
-            <button 
-              @click="$emit('preview', file)"
-              class="p-1.5 hover:bg-gray-100 rounded transition-colors"
-              title="Preview"
-            >
+            <button @click="$emit('preview', file)" class="p-1.5 hover:bg-gray-100 rounded transition-colors"
+              title="Preview">
               <Eye class="w-4 h-4" />
             </button>
           </div>
@@ -93,13 +78,13 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { Folder } from 'lucide-vue-next'
-import { 
+import {
   File,
-  FileText, 
-  FileSpreadsheet, 
-  FileImage, 
-  FileVideo, 
-  FileAudio, 
+  FileText,
+  FileSpreadsheet,
+  FileImage,
+  FileVideo,
+  FileAudio,
   FileArchive,
   Eye
 } from 'lucide-vue-next'

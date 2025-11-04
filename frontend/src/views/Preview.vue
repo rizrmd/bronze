@@ -1,5 +1,5 @@
 <template>
-  <div class="h-screen flex flex-col">
+  <div class="absolute inset-0 flex flex-col">
     <header class="bg-white border-b px-6 py-4 flex items-center justify-between">
       <div class="flex items-center gap-4">
         <button 

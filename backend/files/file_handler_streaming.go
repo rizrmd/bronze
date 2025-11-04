@@ -121,27 +121,30 @@ func (h *FileHandler) streamFolderContents(ctx context.Context, w http.ResponseW
 			// Determine if it's a directory based on the key ending with "/"
 			itemType := "file"
 			name := obj.Key
-			if strings.HasSuffix(obj.Key, "/") && obj.Size == 0 {
-				itemType = "dir"
-				name = strings.TrimSuffix(obj.Key, "/")
-			}
-			
-			// Extract just the name (last path component)
-			if name != "" {
-				name = filepath.Base(name)
-			}
-			
-			if name != "" {
-				items = append(items, map[string]interface{}{
-					"name": name,
-					"type": itemType,
-				})
+
+			if name != path {
+				if strings.HasSuffix(obj.Key, "/") && obj.Size == 0 {
+					itemType = "dir"
+					name = strings.TrimSuffix(obj.Key, "/")
+				}
+
+				// Extract just the name (last path component)
+				if name != "" {
+					name = filepath.Base(name)
+				}
+
+				if name != "" {
+					items = append(items, map[string]interface{}{
+						"name": name,
+						"type": itemType,
+					})
+				}
 			}
 		}
 	} else {
 		log.Printf("folder_start: Error listing files for path %s: %v", path, err)
 	}
-	
+
 	// Create folder_start event with directory listing
 	folderStartData := map[string]interface{}{
 		"path":   folderReq.Path,
@@ -158,11 +161,11 @@ func (h *FileHandler) streamFolderContents(ctx context.Context, w http.ResponseW
 		h.writeSSEError(w, fmt.Sprintf("Error listing %s", path), http.StatusInternalServerError, err)
 		return
 	}
-	
+
 	fileCount := 0
 	dirCount := 0
 	totalSize := int64(0)
-	
+
 	for _, obj := range objects {
 		// Check for context cancellation before processing each item
 		select {
@@ -185,11 +188,12 @@ func (h *FileHandler) streamFolderContents(ctx context.Context, w http.ResponseW
 		}
 
 		isDirectory := strings.HasSuffix(obj.Key, "/") && obj.Size == 0
-		
+
 		if isDirectory {
+
 			// Count items in this directory
 			itemCount := h.countItemsInFolder(ctx, obj.Key)
-			
+
 			dirCount++
 			eventData["type"] = "directory"
 			// Properly decode URL-encoded folder names
@@ -206,7 +210,7 @@ func (h *FileHandler) streamFolderContents(ctx context.Context, w http.ResponseW
 
 		jsonData, _ := json.Marshal(eventData)
 		h.writeSSEEvent(w, "item", string(jsonData))
-		
+
 		// Flush immediately for each item
 		safeFlush()
 
@@ -220,33 +224,33 @@ func (h *FileHandler) streamFolderContents(ctx context.Context, w http.ResponseW
 
 	// Send folder completion summary
 	completionData := map[string]interface{}{
-		"path":        folderReq.Path,
-		"status":      "completed",
-		"fileCount":   fileCount,
-		"dirCount":    dirCount,
-		"totalSize":   totalSize,
-		"totalItems":  fileCount + dirCount,
+		"path":       folderReq.Path,
+		"status":     "completed",
+		"fileCount":  fileCount,
+		"dirCount":   dirCount,
+		"totalSize":  totalSize,
+		"totalItems": fileCount + dirCount,
 	}
-	
+
 	jsonData, _ := json.Marshal(completionData)
 	h.writeSSEEvent(w, "folder_complete", string(jsonData))
-	
+
 	safeFlush()
 }
 
 // Count total items (files + subdirectories) in a folder
 func (h *FileHandler) countItemsInFolder(ctx context.Context, folderPath string) int {
 	count := 0
-	
+
 	// Decode URL-encoded folder path
 	decodedPath, _ := url.PathUnescape(folderPath)
-	
+
 	// Use MinIO client to list items in this folder (non-recursive)
 	objectsCh := h.minioClient.GetClient().ListObjects(ctx, h.minioClient.GetBucketName(), minio.ListObjectsOptions{
 		Prefix:    decodedPath,
 		Recursive: false, // Only direct children
 	})
-	
+
 	for obj := range objectsCh {
 		// Check for context cancellation
 		select {
@@ -254,19 +258,19 @@ func (h *FileHandler) countItemsInFolder(ctx context.Context, folderPath string)
 			return count // Return current count if cancelled
 		default:
 		}
-		
+
 		if obj.Err != nil {
 			continue
 		}
-		
+
 		// Skip the folder marker itself (ending with / and same path)
 		if obj.Key == folderPath {
 			continue
 		}
-		
+
 		count++
 	}
-	
+
 	return count
 }
 

@@ -55,12 +55,12 @@ type MultiFolderRequest struct {
 
 // Individual folder request with options
 type FolderRequest struct {
-	Path         string `json:"path"`                   // Folder path to browse
-	IncludeFiles bool   `json:"include_files"`          // Include files in response
-	IncludeDirs  bool   `json:"include_dirs"`           // Include directories in response
-	Recursive    bool   `json:"recursive"`              // Include subdirectories
-	MaxDepth     int    `json:"max_depth,omitempty"`    // Max recursion depth (if recursive)
-	IncludeMetadata bool `json:"include_metadata,omitempty"` // Include file counts and sizes for directories
+	Path            string `json:"path"`                       // Folder path to browse
+	IncludeFiles    bool   `json:"include_files"`              // Include files in response
+	IncludeDirs     bool   `json:"include_dirs"`               // Include directories in response
+	Recursive       bool   `json:"recursive"`                  // Include subdirectories
+	MaxDepth        int    `json:"max_depth,omitempty"`        // Max recursion depth (if recursive)
+	IncludeMetadata bool   `json:"include_metadata,omitempty"` // Include file counts and sizes for directories
 }
 
 // Multi-folder response with rich metadata
@@ -72,24 +72,24 @@ type MultiFolderResponse struct {
 
 // Individual folder result with comprehensive information
 type FolderResult struct {
-	Path         string                  `json:"path"`
-	Directories  []DirectoryInfo         `json:"directories,omitempty"`
-	Files        []FileInfo              `json:"files,omitempty"`
-	TotalCount   int                     `json:"total_count"`
-	FileCount    int                     `json:"file_count"`
-	DirCount     int                     `json:"dir_count"`
-	Size         int64                   `json:"total_size_bytes"`
-	LastModified string                  `json:"last_modified"`
+	Path         string                   `json:"path"`
+	Directories  []DirectoryInfo          `json:"directories,omitempty"`
+	Files        []FileInfo               `json:"files,omitempty"`
+	TotalCount   int                      `json:"total_count"`
+	FileCount    int                      `json:"file_count"`
+	DirCount     int                      `json:"dir_count"`
+	Size         int64                    `json:"total_size_bytes"`
+	LastModified string                   `json:"last_modified"`
 	Subfolders   map[string]*FolderResult `json:"subfolders,omitempty"` // recursive results
 }
 
 // Enhanced directory information
 type DirectoryInfo struct {
-	Name         string    `json:"name"`
-	Path         string    `json:"path"`
-	LastModified string    `json:"last_modified"`
-	FileCount    int       `json:"file_count,omitempty"`     // optional metadata
-	Size         int64     `json:"size,omitempty"`           // total size of files inside
+	Name         string `json:"name"`
+	Path         string `json:"path"`
+	LastModified string `json:"last_modified"`
+	FileCount    int    `json:"file_count,omitempty"` // optional metadata
+	Size         int64  `json:"size,omitempty"`       // total size of files inside
 }
 
 // Enhanced file information
@@ -157,15 +157,15 @@ func (h *FileHandler) BatchListFiles(w http.ResponseWriter, r *http.Request) {
 	if len(req.Prefixes) < maxConcurrency {
 		maxConcurrency = len(req.Prefixes)
 	}
-	
+
 	semaphore := make(chan struct{}, maxConcurrency)
-	
+
 	// Start goroutines for each prefix with concurrency control
 	for i, prefix := range req.Prefixes {
 		go func(idx int, p string) {
-			semaphore <- struct{}{} // Acquire
+			semaphore <- struct{}{}        // Acquire
 			defer func() { <-semaphore }() // Release
-			
+
 			files, err := h.minioClient.ListFiles(ctx, p, limit)
 			resultChan <- struct {
 				prefix string
@@ -280,7 +280,7 @@ func (h *FileHandler) streamFolderBrowse(w http.ResponseWriter, r *http.Request)
 
 	// Send initial connection event
 	h.writeSSEEvent(w, "connected", `{"status":"connected"}`)
-	
+
 	// Create a flusher for real-time updates
 	flusher, ok := w.(http.Flusher)
 	if !ok {
@@ -300,7 +300,7 @@ func (h *FileHandler) streamFolderBrowse(w http.ResponseWriter, r *http.Request)
 	if len(req.Folders) < maxConcurrency {
 		maxConcurrency = len(req.Folders)
 	}
-	
+
 	semaphore := make(chan struct{}, maxConcurrency)
 	completed := make(chan string, len(req.Folders))
 	results := make(map[string]FolderResult)
@@ -308,7 +308,7 @@ func (h *FileHandler) streamFolderBrowse(w http.ResponseWriter, r *http.Request)
 	// Start goroutines for each folder
 	for i, folderReq := range req.Folders {
 		go func(idx int, folderReq FolderRequest) {
-			semaphore <- struct{}{} // Acquire
+			semaphore <- struct{}{}        // Acquire
 			defer func() { <-semaphore }() // Release
 
 			result, err := h.processFolder(ctx, folderReq, 1000)
@@ -319,78 +319,6 @@ func (h *FileHandler) streamFolderBrowse(w http.ResponseWriter, r *http.Request)
 			}{path: folderReq.Path, result: result, err: error(err)}
 		}(i, folderReq)
 	}
-
-	// Stream results as they complete
-	go func() {
-		for i := 0; i < len(req.Folders); i++ {
-			select {
-			case result := <-resultChan:
-				if result.err != nil {
-					h.writeSSEError(w, fmt.Sprintf("Error processing %s", result.path), http.StatusInternalServerError, result.err)
-				} else {
-					// Create directory listing from existing folder result
-					var items []map[string]interface{}
-					
-					// Add directories
-					for _, dir := range result.result.Directories {
-						// Extract just the directory name from path
-						dirName := dir.Name
-						if dirName == "" {
-							parts := strings.Split(strings.TrimSuffix(dir.Path, "/"), "/")
-							if len(parts) > 0 {
-								dirName = parts[len(parts)-1]
-							}
-						}
-						if dirName != "" {
-							items = append(items, map[string]interface{}{
-								"name": dirName,
-								"type": "dir",
-							})
-						}
-					}
-					
-					// Add files
-					for _, file := range result.result.Files {
-						// Use the Name field directly
-						fileName := file.Name
-						if fileName != "" {
-							items = append(items, map[string]interface{}{
-								"name": fileName,
-								"type": "file",
-							})
-						}
-					}
-					
-					// Create folder_start event with directory listing
-					folderStartData := map[string]interface{}{
-						"path":   result.path,
-						"status": "processing",
-						"items":  items,
-					}
-					folderStartJSON, _ := json.Marshal(folderStartData)
-					h.writeSSEEvent(w, "folder_start", string(folderStartJSON))
-					
-					// Stream folder metadata
-					folderJSON, _ := json.Marshal(result.result)
-					h.writeSSEEvent(w, "folder_data", string(folderJSON))
-					
-					// Send folder complete event
-					fileCount := result.result.FileCount + result.result.DirCount
-					h.writeSSEEvent(w, "folder_complete", fmt.Sprintf(`{"path":"%s","status":"completed","items":%d}`, result.path, fileCount))
-					
-					results[result.path] = result.result
-					completed <- result.path
-					
-					// Flush immediately
-					if flusher != nil {
-						flusher.Flush()
-					}
-				}
-			case <-ctx.Done():
-				return
-			}
-		}
-	}()
 
 	// Wait for completion or timeout
 	for i := 0; i < len(req.Folders); i++ {
@@ -411,11 +339,11 @@ func (h *FileHandler) streamFolderBrowse(w http.ResponseWriter, r *http.Request)
 	}
 	finalJSON, _ := json.Marshal(finalResponse)
 	h.writeSSEEvent(w, "complete", string(finalJSON))
-	
+
 	// Send keepalive events periodically
 	keepalive := time.NewTicker(15 * time.Second)
 	defer keepalive.Stop()
-	
+
 	for {
 		select {
 		case <-keepalive.C:
@@ -462,15 +390,15 @@ func (h *FileHandler) processFolder(ctx context.Context, folderReq FolderRequest
 	}
 
 	result := FolderResult{
-		Path:       path,
-		Directories: []DirectoryInfo{},
-		Files:       []FileInfo{},
-		TotalCount:  0,
-		FileCount:   0,
-		DirCount:    0,
-		Size:        0,
+		Path:         path,
+		Directories:  []DirectoryInfo{},
+		Files:        []FileInfo{},
+		TotalCount:   0,
+		FileCount:    0,
+		DirCount:     0,
+		Size:         0,
 		LastModified: "",
-		Subfolders:  make(map[string]*FolderResult),
+		Subfolders:   make(map[string]*FolderResult),
 	}
 
 	// Track directories for recursive processing
@@ -479,7 +407,7 @@ func (h *FileHandler) processFolder(ctx context.Context, folderReq FolderRequest
 
 	for _, obj := range objects {
 		result.LastModified = obj.LastModified.Format(time.RFC3339)
-		
+
 		// Determine if this is a directory or file
 		isDirectory := strings.HasSuffix(obj.Key, "/") && obj.Size == 0
 		relativePath := strings.TrimPrefix(strings.TrimPrefix(obj.Key, path), "/")
@@ -489,16 +417,17 @@ func (h *FileHandler) processFolder(ctx context.Context, folderReq FolderRequest
 			dirName := strings.TrimSuffix(relativePath, "/")
 			if dirName != "" && folderReq.IncludeDirs {
 				// Skip current directory from being added to its own listing
-				if relativePath == "" {
-					continue // Skip self (current directory)
+				currentDirName := strings.TrimSuffix(strings.TrimPrefix(path, "/"), "/")
+				if dirName == currentDirName {
+					continue // Skip current directory
 				}
-				
+
 				dirInfo := DirectoryInfo{
 					Name:         dirName,
 					Path:         obj.Key,
 					LastModified: obj.LastModified.Format(time.RFC3339),
 				}
-				
+
 				// Count items in this directory if metadata is requested
 				if folderReq.IncludeMetadata {
 					subFiles, err := h.minioClient.ListFiles(ctx, obj.Key, 0)
@@ -507,11 +436,11 @@ func (h *FileHandler) processFolder(ctx context.Context, folderReq FolderRequest
 						for _, subObj := range subFiles {
 							relativeSubPath := strings.TrimPrefix(subObj.Key, obj.Key)
 							relativeSubPath = strings.TrimPrefix(relativeSubPath, "/")
-							
+
 							if relativeSubPath == "" {
 								continue // Skip self
 							}
-							
+
 							if strings.HasSuffix(subObj.Key, "/") && subObj.Size == 0 {
 								dirCount++
 							} else {
@@ -523,7 +452,7 @@ func (h *FileHandler) processFolder(ctx context.Context, folderReq FolderRequest
 						dirInfo.Size = totalSize
 					}
 				}
-				
+
 				dirMap[dirName] = dirInfo
 				result.DirCount++
 			}
@@ -565,13 +494,13 @@ func (h *FileHandler) processFolder(ctx context.Context, folderReq FolderRequest
 				Recursive:    false, // Only go one level deep per recursion call
 				MaxDepth:     folderReq.MaxDepth - 1,
 			}
-			
+
 			subResult, err := h.processFolder(ctx, subFolderReq, limit)
 			if err == nil {
 				result.Subfolders[dirName] = &subResult
 			}
 		}
-		
+
 		// Populate file_count and dir_count for directories from subfolder results
 		for i, dir := range result.Directories {
 			if subResult, exists := result.Subfolders[dir.Name]; exists {

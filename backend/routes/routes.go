@@ -72,9 +72,9 @@ func (r *Router) setupRoutes(
 	
 	// Specific operation endpoints
 	fileRouter.HandleFunc("/upload", fileHandler.UploadFile).Methods("POST")
-	fileRouter.HandleFunc("/download/{filename}", fileHandler.DownloadFile).Methods("GET")
-	fileRouter.HandleFunc("/info/{filename}", fileHandler.GetFileInfo).Methods("GET")
-	fileRouter.HandleFunc("/presigned/{filename}", fileHandler.GetPresignedURL).Methods("GET")
+	fileRouter.HandleFunc("/download/{filename:.+}", fileHandler.DownloadFile).Methods("GET")
+	fileRouter.HandleFunc("/info/{filename:.+}", fileHandler.GetFileInfo).Methods("GET")
+	fileRouter.HandleFunc("/presigned/{filename:.+}", fileHandler.GetPresignedURL).Methods("GET")
 	fileRouter.HandleFunc("/delete", fileHandler.DeleteFile).Methods("POST")
 	fileRouter.HandleFunc("/copy", fileHandler.CopyFile).Methods("POST")
 	fileRouter.HandleFunc("/extract", fileHandler.ExtractArchive).Methods("POST")
@@ -83,10 +83,10 @@ func (r *Router) setupRoutes(
 	fileRouter.HandleFunc("", fileHandler.ListFiles).Methods("GET")
 	fileRouter.HandleFunc("", fileHandler.BatchListFiles).Methods("POST")
 	fileRouter.HandleFunc("", fileHandler.DeleteFilesByPrefix).Methods("DELETE")
-	fileRouter.HandleFunc("/{filename}", fileHandler.DownloadFile).Methods("GET")
-	fileRouter.HandleFunc("/{filename}/info", fileHandler.GetFileInfo).Methods("GET")
-	fileRouter.HandleFunc("/{filename}/presigned", fileHandler.GetPresignedURL).Methods("GET")
-	fileRouter.HandleFunc("/{filename}", fileHandler.DeleteFile).Methods("DELETE")
+	fileRouter.HandleFunc("/{filename:.+}", fileHandler.DownloadFile).Methods("GET")
+	fileRouter.HandleFunc("/{filename:.+}/info", fileHandler.GetFileInfo).Methods("GET")
+	fileRouter.HandleFunc("/{filename:.+}/presigned", fileHandler.GetPresignedURL).Methods("GET")
+	fileRouter.HandleFunc("/{filename:.+}", fileHandler.DeleteFile).Methods("DELETE")
 
 	// Bucket management routes
 	bucketRouter := r.router.PathPrefix("/api/buckets").Subrouter()

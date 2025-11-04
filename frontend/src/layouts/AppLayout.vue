@@ -34,11 +34,6 @@ const navigation = [
     icon: Briefcase
   },
   {
-    name: 'Watcher',
-    href: '/watcher',
-    icon: Eye
-  },
-  {
     name: 'Nessie',
     href: '/nessie',
     icon: Database
