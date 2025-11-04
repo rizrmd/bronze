@@ -28,8 +28,9 @@ watch(
       if (isBackToParent) {
         console.log(`Route changed from ${oldPath} to ${newPath} (back to parent), NOT canceling browse requests`)
       } else {
-        console.log(`Route changed from ${oldPath} to ${newPath} (forward navigation), canceling browse requests`)
-        requestStore.cancelAllRequests()
+        console.log(`Route changed from ${oldPath} to ${newPath} (forward navigation), canceling all browse requests except ${newPath}`)
+        // Cancel all requests EXCEPT those for the new target path
+        requestStore.cancelAllExceptForUrl(newPath)
       }
     }
   }

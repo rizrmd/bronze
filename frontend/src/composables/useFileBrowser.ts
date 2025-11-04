@@ -122,9 +122,16 @@ export function useFileBrowser(options: FileBrowserOptions = {}) {
     // Cancel any existing request for this path
     cancelBrowseRequest(requestKey)
     
-    // Create new abort controller for this request
-    const abortController = new AbortController()
-    requestStore.addRequest(requestKey, abortController)
+    // Create new abort controller for this request - ensure it's fresh
+    let abortController = new AbortController()
+    
+    // Double-check the new controller isn't already aborted (edge case)
+    if (abortController.signal.aborted) {
+      console.log('⚠️ New AbortController was already aborted, creating fresh one')
+      abortController = new AbortController()
+    }
+    
+    requestStore.addRequest(requestKey, abortController, `/files/${path || ''}`)
     
     const folderRequest: FolderRequest = {
       path,
