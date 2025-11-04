@@ -187,7 +187,8 @@ export async function browseFolders(folders: any[], onEvent: SSEEventCallback, o
     const isAbortErrorType = isAbortError(error, wasAborted)
     
     if (wasAborted || isAbortErrorType) {
-      console.log('browseFolders request cancelled')
+      console.log('✅ browseFolders request successfully cancelled - no error shown to user')
+      console.log('📍 Note: Browser may still log network error, but UI is protected')
       return
     }
     
