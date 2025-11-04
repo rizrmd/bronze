@@ -489,9 +489,8 @@ func (h *FileHandler) processFolder(ctx context.Context, folderReq FolderRequest
 			dirName := strings.TrimSuffix(relativePath, "/")
 			if dirName != "" && folderReq.IncludeDirs {
 				// Skip current directory from being added to its own listing
-				currentDirName := strings.TrimSuffix(strings.TrimPrefix(path, "/"), "/")
-				if dirName == currentDirName {
-					continue // Skip current directory
+				if relativePath == "" {
+					continue // Skip self (current directory)
 				}
 				
 				dirInfo := DirectoryInfo{
