@@ -31,6 +31,10 @@ export function useFileBrowser(options: FileBrowserOptions = {}) {
   const folders = ref<DirectoryInfo[]>([])
   const loading = ref(false)
   const error = ref('')
+  
+  // Track seen items to avoid duplicates during streaming
+  const seenFiles = ref(new Set<string>())
+  const seenFolders = ref(new Set<string>())
 
   const searchQuery = ref('')
   const viewMode = ref<'list' | 'grid'>(options.initialViewMode || 'list')
@@ -147,12 +151,49 @@ export function useFileBrowser(options: FileBrowserOptions = {}) {
       await browseFolders(
         [folderRequest],
         (event, data) => {
+          // If request was aborted, exit early and reset loading
+          if (abortController?.signal.aborted) {
+            console.log('📡 Request aborted during SSE processing, resetting loading state')
+            loading.value = false
+            return
+          }
+          
           switch (event) {
             case 'folder_start':
-              // Clear current data when starting new folder browse
+              // Clear current data and tracking sets when starting new folder browse
               files.value = []
               folders.value = []
+              seenFiles.value.clear()
+              seenFolders.value.clear()
               loading.value = true
+              
+              // Pre-populate with directory listing if available
+              if (data.items && Array.isArray(data.items)) {
+                data.items.forEach((item: any) => {
+                  if (item.type === 'dir') {
+                    folders.value.push({
+                      name: item.name,
+                      path: data.path,
+                      last_modified: new Date().toISOString(),
+                      file_count: 0,
+                      dir_count: 0
+                    })
+                    seenFolders.value.add(item.name)
+                  } else {
+                    files.value.push({
+                      key: item.name,
+                      size: 0,
+                      last_modified: new Date().toISOString(),
+                      etag: '',
+                      content_type: ''
+                    })
+                    seenFiles.value.add(item.name)
+                  }
+                })
+                
+                // Stop loading since we have items to display
+                loading.value = false
+              }
               
               // Trigger immediate UI update
               nextTick()
@@ -165,28 +206,70 @@ export function useFileBrowser(options: FileBrowserOptions = {}) {
               }
               
               if (data.type === 'file') {
-                // Add file to files array
-                files.value.push({
-                  key: data.path,
-                  size: data.size,
-                  last_modified: data.last_modified,
-                  etag: data.etag,
-                  content_type: data.contentType
-                })
+                const fileName = data.name || data.path
+                
+                if (!seenFiles.value.has(fileName)) {
+                  // New file - add it with full metadata
+                  seenFiles.value.add(fileName)
+                  files.value.push({
+                    key: data.path,
+                    size: data.size,
+                    last_modified: data.last_modified,
+                    etag: data.etag,
+                    content_type: data.contentType
+                  })
+                } else {
+                  // Existing file - update its metadata
+                  const fileIndex = files.value.findIndex(file => 
+                    file.key === data.path || file.key === fileName
+                  )
+                  if (fileIndex !== -1) {
+                    files.value[fileIndex] = {
+                      ...files.value[fileIndex],
+                      key: data.path,
+                      size: data.size,
+                      last_modified: data.last_modified,
+                      etag: data.etag,
+                      content_type: data.contentType
+                    }
+                  }
+                }
                 
                 // Trigger immediate UI update
                 nextTick()
               } else if (data.type === 'directory') {
-                // Add directory to folders array
-                folders.value.push({
-                  ...data,
-                  name: data.name,
-                  path: data.path,
-                  file_count: 0,
-                  dir_count: 0,
-                  total_count: data.size || 0, // For folders, size is item count
-                  size: data.size || 0 // Store original size (item count for folders)
-                })
+                const folderName = data.name || data.path
+                
+                if (!seenFolders.value.has(folderName)) {
+                  // New folder - add it with full metadata
+                  seenFolders.value.add(folderName)
+                  folders.value.push({
+                    ...data,
+                    name: data.name,
+                    path: data.path,
+                    file_count: 0,
+                    dir_count: 0,
+                    total_count: data.size || 0, // For folders, size is item count
+                    size: data.size || 0 // Store original size (item count for folders)
+                  })
+                } else {
+                  // Existing folder - update its metadata
+                  const folderIndex = folders.value.findIndex(folder => 
+                    folder.path === data.path || folder.name === folderName
+                  )
+                  if (folderIndex !== -1) {
+                    folders.value[folderIndex] = {
+                      ...folders.value[folderIndex],
+                      ...data,
+                      name: data.name,
+                      path: data.path,
+                      file_count: 0,
+                      dir_count: 0,
+                      total_count: data.size || 0,
+                      size: data.size || 0
+                    }
+                  }
+                }
                 
                 // Trigger immediate UI update
                 nextTick()
@@ -215,7 +298,10 @@ export function useFileBrowser(options: FileBrowserOptions = {}) {
       )
     } catch (err: any) {
       // Don't show error for aborted requests - they're intentional cancellations
-      if (!isAbortError(err, abortController?.signal.aborted)) {
+      if (isAbortError(err, abortController?.signal.aborted)) {
+        console.log('✅ Request aborted, resetting loading state')
+        loading.value = false  // Always reset loading on abort!
+      } else {
         error.value = err.message || 'Failed to fetch directory'
         loading.value = false
       }

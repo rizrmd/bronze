@@ -15,6 +15,13 @@
       </div>
       
       <div class="flex items-center space-x-2">
+        <button 
+          @click.stop="$emit('preview', file)"
+          class="p-1.5 hover:bg-gray-100 rounded transition-colors"
+          title="Preview"
+        >
+          <Eye class="w-4 h-4" />
+        </button>
       </div>
     </div>
   </div>
@@ -22,6 +29,7 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
+import { Eye } from 'lucide-vue-next'
 import { formatFileSize, formatDate } from '@/composables/useFileUtils'
 import type { FileInfo } from '@/types'
 
@@ -31,6 +39,7 @@ interface Props {
 
 interface Emits {
   (e: 'open', file: FileInfo): void
+  (e: 'preview', file: FileInfo): void
 }
 
 const props = defineProps<Props>()

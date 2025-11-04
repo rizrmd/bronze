@@ -45,6 +45,7 @@
             @navigate="navigateToFolder"
             @open-folder="navigateToFolder"
             @open-file="openFile"
+            @preview="previewFile"
           />
         </div>
         
@@ -65,6 +66,7 @@
             :key="file.key"
             :file="file"
             @open="openFile"
+            @preview="previewFile"
           />
         </div>
       </div>
@@ -127,10 +129,30 @@ const hasFiles = computed(() => {
 
 // Open file in data browser with full path
 const openFile = (file: FileInfo) => {
-  // Always navigate to data browser with the full file path
+  // Navigate to preview instead since DataBrowser was deleted
+  const fileName = file.key?.split('/')?.pop() || ''
+  const filePath = file.key?.substring(0, file.key.lastIndexOf('/')) || ''
+  
   router.push({
-    name: 'DataBrowser',
-    query: { file: file.key }
+    name: 'Preview',
+    query: { 
+      file: fileName,
+      path: filePath
+    }
+  })
+}
+
+// Preview file
+const previewFile = (file: FileInfo) => {
+  const fileName = file.key?.split('/')?.pop() || ''
+  const filePath = file.key?.substring(0, file.key.lastIndexOf('/')) || ''
+  
+  router.push({
+    name: 'Preview',
+    query: { 
+      file: fileName,
+      path: filePath
+    }
   })
 }
 

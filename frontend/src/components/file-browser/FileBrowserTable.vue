@@ -11,6 +11,9 @@
         <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
           Modified
         </th>
+        <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+          Actions
+        </th>
       </tr>
     </thead>
     
@@ -49,12 +52,16 @@
         :key="file.key"
         class="hover:bg-gray-50 cursor-pointer"
         :class="{}"
-        @click="$emit('open-file', file)"
       >
         <td class="px-4 py-2">
           <div class="flex items-center gap-3">
             <component :is="getFileIconForFile(file)" />
-            <span class="font-medium">{{ getFileName(file) }}</span>
+            <span 
+              class="font-medium"
+              @click="$emit('open-file', file)"
+            >
+              {{ getFileName(file) }}
+            </span>
           </div>
         </td>
         
@@ -64,6 +71,18 @@
         
         <td class="px-4 py-2 text-sm text-gray-500">
           {{ formatDate(file.last_modified) }}
+        </td>
+
+        <td class="px-4 py-2 text-sm text-gray-500">
+          <div class="flex items-center gap-2">
+            <button 
+              @click="$emit('preview', file)"
+              class="p-1.5 hover:bg-gray-100 rounded transition-colors"
+              title="Preview"
+            >
+              <Eye class="w-4 h-4" />
+            </button>
+          </div>
         </td>
 
       </tr>
@@ -81,7 +100,8 @@ import {
   FileImage, 
   FileVideo, 
   FileAudio, 
-  FileArchive
+  FileArchive,
+  Eye
 } from 'lucide-vue-next'
 import { formatFileSize, formatDate, sortFiles } from '@/composables/useFileUtils'
 import type { FileInfo, DirectoryInfo } from '@/types'
@@ -97,6 +117,7 @@ interface Emits {
   (e: 'navigate', folder: DirectoryInfo): void
   (e: 'open-folder', folder: DirectoryInfo): void
   (e: 'open-file', file: FileInfo): void
+  (e: 'preview', file: FileInfo): void
 }
 
 const props = withDefaults(defineProps<Props>(), {
